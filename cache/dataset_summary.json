@@ -1,0 +1,11 @@
+{
+  "scope_version": "2.08",
+  "identity_filter": "40%",
+  "n_proteins": 11763,
+  "n_folds": 1093,
+  "n_residues": 2239774,
+  "length_min": 50,
+  "length_max": 987,
+  "length_mean": 190.4083992178866,
+  "length_median": 157.0
+}

@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Data outputs (large, reproducible from code)
+outputs_layerwise*/
+analysis_results*/
+results_clamping*/
+
+# Cached data (large, reproducible)
+cache/pdb_files/
+cache/full_sequences.json
+cache/full_residue_features.csv
+cache/ablation_esm2_layer16.npy
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Draft paper (Word format, tracked separately)
+paper_draft/
+paper_draft_mechinterp_workshop.docx

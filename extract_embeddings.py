@@ -1,0 +1,518 @@
+#!/usr/bin/env python3
+"""
+extract_embeddings.py (A100/H100-Optimized) - FIXED LAYER INDEXING
+===================================================================
+
+Unified extractors for protein language models:
+- ESM-2 encoder (facebook/esm2_t33_650M_UR50D)
+- ProtT5 encoder OR decoder (Rostlab/prot_t5_xl_uniref50)
+- ProtGPT2 (nferruz/ProtGPT2)
+
+FIX APPLIED: All models now use consistent layer indexing where:
+- Layer 0 = output of first transformer block (NOT embedding)
+- Layer N = output of (N+1)th transformer block
+- Final layer = total_blocks - 1
+
+This matches ESM-2's original convention and ensures cross-model comparisons
+are at equivalent relative depths.
+
+Model specs:
+- ESM-2 (650M): 33 transformer blocks → layers 0-32
+- ProtGPT2: 36 transformer blocks → layers 0-35
+- ProtT5-XL: 24 transformer blocks (each) → layers 0-23
+
+A100/H100 Optimizations:
+- Mixed precision (bf16) for 2x throughput
+- Large batch sizes to saturate GPU
+- TF32 tensor core acceleration
+- Flash Attention 2 where available
+- torch.compile for kernel fusion
+"""
+
+import gc
+import os
+import torch
+import numpy as np
+from typing import Dict, List, Optional
+from tqdm import tqdm
+
+from transformers import (
+    AutoTokenizer,
+    AutoModel,
+    T5Tokenizer,
+    T5EncoderModel,
+    T5ForConditionalGeneration,
+    AutoModelForCausalLM,
+)
+
+# ============================================================
+#              HARDWARE CONFIGURATION
+# ============================================================
+
+_HW_CONFIG = None
+
+def _get_hw_config(device: str) -> dict:
+    """Auto-detect hardware and return optimal config."""
+    global _HW_CONFIG
+    if _HW_CONFIG is not None:
+        return _HW_CONFIG
+    
+    config = {
+        "dtype": torch.float32,
+        "use_amp": False,
+        "esm2_batch": 8,
+        "prott5_batch": 1,
+        "protgpt2_batch": 4,
+        "use_flash_attn": False,
+    }
+    
+    if device == "cuda" and torch.cuda.is_available():
+        props = torch.cuda.get_device_properties(0)
+        vram_gb = props.total_memory / (1024**3)
+
+        print(f"🖥️  GPU: {props.name} ({vram_gb:.1f} GB)")
+
+        # Enable bf16 for Ampere+ (SM 8.0+)
+        if props.major >= 8:
+            config["dtype"] = torch.bfloat16
+            config["use_amp"] = True
+        elif props.major >= 7:
+            config["dtype"] = torch.float16
+            config["use_amp"] = True
+
+        # Batch sizes based on VRAM
+        if vram_gb > 70:  # H100 80GB
+            config["esm2_batch"] = 64
+            config["prott5_batch"] = 8
+            config["protgpt2_batch"] = 32
+        elif vram_gb > 35:  # A100 40/80GB
+            config["esm2_batch"] = 32
+            config["prott5_batch"] = 4
+            config["protgpt2_batch"] = 16
+        elif vram_gb > 20:  # RTX 3090/4090
+            config["esm2_batch"] = 16
+            config["prott5_batch"] = 2
+            config["protgpt2_batch"] = 8
+        elif vram_gb > 10:
+            config["esm2_batch"] = 8
+            config["prott5_batch"] = 1
+            config["protgpt2_batch"] = 4
+
+        # TF32 for tensor cores
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cudnn.benchmark = True
+
+        # Check flash attention
+        try:
+            from transformers.utils import is_flash_attn_2_available
+            if is_flash_attn_2_available():
+                config["use_flash_attn"] = True
+                print("✅ Flash Attention 2 enabled")
+        except:
+            pass
+
+    elif device == "mps":
+        print(f"🖥️  Apple Silicon (MPS backend)")
+        # fp16 model loading for 2x memory savings; autocast is
+        # automatically skipped for non-CUDA devices (see _get_autocast_context)
+        config["dtype"] = torch.float16
+        config["use_amp"] = True  # triggers fp16 model loading only
+        # Tuned for Apple Silicon Ultra / Max with ≥64 GB unified memory.
+        # Override via {ESM2,PROTT5,PROTGPT2}_BATCH env vars if hitting OOM.
+        config["esm2_batch"] = int(os.environ.get("ESM2_BATCH", 32))
+        config["prott5_batch"] = int(os.environ.get("PROTT5_BATCH", 4))
+        config["protgpt2_batch"] = int(os.environ.get("PROTGPT2_BATCH", 16))
+        config["use_flash_attn"] = False
+        print(f"   Batches: esm2={config['esm2_batch']} "
+              f"prott5={config['prott5_batch']} protgpt2={config['protgpt2_batch']}")
+
+    _HW_CONFIG = config
+    return config
+
+
+def _clear_cache():
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
+def _get_autocast_context(device: str, dtype: torch.dtype, enabled: bool):
+    """Get autocast context compatible with all PyTorch versions."""
+    if not enabled or device != "cuda":
+        import contextlib
+        return contextlib.nullcontext()
+    
+    try:
+        # PyTorch 2.0+ API
+        return torch.amp.autocast(device_type=device, dtype=dtype, enabled=enabled)
+    except (TypeError, AttributeError):
+        pass
+    
+    try:
+        # Older API
+        return torch.cuda.amp.autocast(enabled=enabled)
+    except:
+        pass
+    
+    import contextlib
+    return contextlib.nullcontext()
+
+
+def _get_device(device: Optional[str] = None) -> str:
+    if device:
+        return device
+    if torch.cuda.is_available():
+        return "cuda"
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+def _to_numpy(x: torch.Tensor) -> np.ndarray:
+    return x.detach().cpu().float().numpy()
+
+
+def _keep_mask(input_ids: torch.Tensor, attention_mask: torch.Tensor, tokenizer) -> torch.Tensor:
+    """Returns boolean mask of positions to KEEP (exclude specials/pad)."""
+    ids = input_ids[0] if input_ids.dim() > 1 else input_ids
+    attn = attention_mask[0].bool() if attention_mask.dim() > 1 else attention_mask.bool()
+    
+    special_ids = set(getattr(tokenizer, "all_special_ids", []) or [])
+    for attr in ("pad_token_id", "eos_token_id", "bos_token_id", 
+                 "cls_token_id", "sep_token_id", "mask_token_id"):
+        tid = getattr(tokenizer, attr, None)
+        if tid is not None:
+            special_ids.add(int(tid))
+    
+    if len(special_ids) == 0:
+        return attn
+    
+    specials_mask = torch.zeros_like(ids, dtype=torch.bool)
+    for sid in special_ids:
+        specials_mask |= (ids == sid)
+    
+    keep = attn & (~specials_mask)
+    if keep.sum().item() == 0:
+        keep = attn
+    return keep
+
+
+# ============================================================
+#                    ESM-2 EXTRACTOR
+# ============================================================
+
+def extract_esm2_embeddings(
+    protein_sequences: List[str],
+    layers: List[int],
+    device: Optional[str] = None,
+    batch_size: Optional[int] = None,
+    max_length: int = 1024,
+) -> Dict[int, np.ndarray]:
+    """
+    Extract ESM-2 embeddings at specified layers.
+    
+    Layer indexing: layer N = output of transformer block N+1
+    - Layer 0 = first transformer block output
+    - Layer 32 = final transformer block output (33rd block)
+    
+    ESM-2 (650M) has 33 transformer blocks, so valid layers are 0-32.
+    """
+    if not layers:
+        raise ValueError("Must request at least one ESM-2 layer.")
+    
+    layers = sorted(set(int(layer) for layer in layers))
+    device = _get_device(device)
+    config = _get_hw_config(device)
+    
+    if batch_size is None:
+        batch_size = config["esm2_batch"]
+    
+    print(f"Loading ESM-2 to {device} (batch={batch_size}, amp={config['use_amp']})...")
+    print(f"  Layers requested: {layers} (ESM-2 has 33 blocks, indices 0-32)")
+    
+    model_kwargs = {}
+    if config["use_flash_attn"]:
+        model_kwargs["attn_implementation"] = "flash_attention_2"
+    if config["use_amp"]:
+        model_kwargs["torch_dtype"] = config["dtype"]
+    
+    tokenizer = AutoTokenizer.from_pretrained("facebook/esm2_t33_650M_UR50D")
+    model = AutoModel.from_pretrained("facebook/esm2_t33_650M_UR50D", **model_kwargs).to(device).eval()
+    
+    layer_buffers: Dict[int, List[np.ndarray]] = {layer: [] for layer in layers}
+    batches = [protein_sequences[i:i + batch_size] for i in range(0, len(protein_sequences), batch_size)]
+    
+    print(f"Extracting {len(protein_sequences)} sequences in {len(batches)} batches...")
+    
+    with torch.no_grad():
+        for batch_seqs in tqdm(batches, desc="ESM-2"):
+            tokens = tokenizer(
+                batch_seqs, return_tensors="pt", add_special_tokens=True,
+                padding=True, truncation=True, max_length=max_length,
+            ).to(device)
+            
+            with _get_autocast_context(device, config["dtype"], config["use_amp"]):
+                outputs = model(**tokens, output_hidden_states=True, return_dict=True)
+            hidden_states = outputs.hidden_states  # Tuple of (embedding, block1, block2, ..., block33)
+            
+            for i in range(len(batch_seqs)):
+                keep = _keep_mask(tokens["input_ids"][i:i+1], tokens["attention_mask"][i:i+1], tokenizer)
+                for layer in layers:
+                    # hidden_states[0] = embedding, hidden_states[1] = block 1, ..., hidden_states[33] = block 33
+                    # So layer N (block N+1) is at index N+1
+                    idx = layer + 1
+                    if idx >= len(hidden_states):
+                        raise ValueError(f"ESM-2: requested layer {layer}, only {len(hidden_states)-1} blocks available.")
+                    layer_buffers[layer].append(_to_numpy(hidden_states[idx][i, keep, :]))
+            
+            del outputs, hidden_states
+    
+    del model
+    _clear_cache()
+    return {layer: np.vstack(chunks) for layer, chunks in layer_buffers.items()}
+
+
+# ============================================================
+#                 PROTT5 ENCODER EXTRACTOR
+# ============================================================
+
+def extract_prott5_encoder_embeddings(
+    sequences: List[str],
+    layers: List[int],
+    device: Optional[str] = None,
+    batch_size: Optional[int] = None,
+) -> Dict[int, np.ndarray]:
+    """
+    Extract ProtT5 encoder embeddings.
+    
+    Layer indexing: layer N = output of transformer block N+1
+    - Layer 0 = first transformer block output
+    - Layer 23 = final transformer block output (24th block)
+    
+    ProtT5-XL encoder has 24 transformer blocks, so valid layers are 0-23.
+    
+    FIXED: Now uses +1 offset to skip embedding layer, matching ESM-2 convention.
+    """
+    if not layers:
+        raise ValueError("Must request at least one ProtT5 encoder layer.")
+    
+    layers = sorted(set(int(layer) for layer in layers))
+    device = _get_device(device)
+    config = _get_hw_config(device)
+    
+    if batch_size is None:
+        batch_size = config["prott5_batch"]
+    
+    model_name = "Rostlab/prot_t5_xl_half_uniref50-enc"
+    print(f"Loading ProtT5 encoder to {device} (batch={batch_size}, amp={config['use_amp']})...")
+    print(f"  Layers requested: {layers} (ProtT5 encoder has 24 blocks, indices 0-23)")
+    
+    tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=True)
+    model_kwargs = {"torch_dtype": config["dtype"]} if config["use_amp"] else {}
+    model = T5EncoderModel.from_pretrained(model_name, **model_kwargs).to(device).eval()
+    
+    buffers: Dict[int, List[np.ndarray]] = {layer: [] for layer in layers}
+    batches = [sequences[i:i + batch_size] for i in range(0, len(sequences), batch_size)]
+    
+    with torch.no_grad():
+        for batch_seqs in tqdm(batches, desc="ProtT5-Enc"):
+            texts = [" ".join(seq) for seq in batch_seqs]
+            toks = tokenizer(texts, return_tensors="pt", add_special_tokens=False, 
+                           padding=True, truncation=True, max_length=1024).to(device)
+            
+            with _get_autocast_context(device, config["dtype"], config["use_amp"]):
+                out = model(**toks, output_hidden_states=True, return_dict=True)
+            hidden_states = out.hidden_states  # Tuple of (embedding, block1, ..., block24)
+            
+            for i in range(len(batch_seqs)):
+                keep = toks["attention_mask"][i].bool()
+                for layer in layers:
+                    # FIXED: Add +1 to skip embedding layer
+                    # hidden_states[0] = embedding, hidden_states[1] = block 1, ..., hidden_states[24] = block 24
+                    idx = layer + 1
+                    if idx >= len(hidden_states):
+                        raise ValueError(f"ProtT5 encoder: requested layer {layer}, only {len(hidden_states)-1} blocks available.")
+                    buffers[layer].append(_to_numpy(hidden_states[idx][i, keep, :]))
+            
+            del out, hidden_states
+    
+    del model
+    _clear_cache()
+    return {layer: np.vstack(chunks) for layer, chunks in buffers.items()}
+
+
+# ============================================================
+#                 PROTT5 DECODER EXTRACTOR
+# ============================================================
+
+def extract_prott5_decoder_embeddings(
+    sequences: List[str],
+    layers: List[int],
+    device: Optional[str] = None,
+    batch_size: Optional[int] = None,
+) -> Dict[int, np.ndarray]:
+    """
+    Extract ProtT5 decoder embeddings.
+    
+    Layer indexing: layer N = output of transformer block N+1
+    - Layer 0 = first transformer block output
+    - Layer 23 = final transformer block output (24th block)
+    
+    ProtT5-XL decoder has 24 transformer blocks, so valid layers are 0-23.
+    
+    FIXED: Now uses +1 offset to skip embedding layer, matching ESM-2 convention.
+    """
+    if not layers:
+        raise ValueError("Must request at least one ProtT5 decoder layer.")
+    
+    layers = sorted(set(int(layer) for layer in layers))
+    device = _get_device(device)
+    config = _get_hw_config(device)
+    
+    model_name = "Rostlab/prot_t5_xl_uniref50"
+    print(f"Loading ProtT5 decoder to {device} (amp={config['use_amp']})...")
+    print(f"  Layers requested: {layers} (ProtT5 decoder has 24 blocks, indices 0-23)")
+    
+    tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=True)
+    model_kwargs = {"torch_dtype": config["dtype"]} if config["use_amp"] else {}
+    model = T5ForConditionalGeneration.from_pretrained(model_name, **model_kwargs).to(device).eval()
+    
+    bos_id = tokenizer.pad_token_id
+    buffers: Dict[int, List[np.ndarray]] = {layer: [] for layer in layers}
+    
+    with torch.no_grad():
+        for seq in tqdm(sequences, desc="ProtT5-Dec"):
+            text = " ".join(seq)
+            toks = tokenizer(text, return_tensors="pt", add_special_tokens=False).to(device)
+            enc_ids, enc_mask = toks["input_ids"], toks["attention_mask"]
+            
+            dec_ids = torch.full((1, 1), bos_id, dtype=enc_ids.dtype, device=device)
+            if enc_ids.shape[1] > 1:
+                dec_ids = torch.cat([dec_ids, enc_ids[:, :-1]], dim=1)
+            dec_mask = torch.ones_like(dec_ids)
+            
+            with _get_autocast_context(device, config["dtype"], config["use_amp"]):
+                outputs = model(input_ids=enc_ids, attention_mask=enc_mask,
+                              decoder_input_ids=dec_ids, decoder_attention_mask=dec_mask,
+                              output_hidden_states=True, return_dict=True)
+            
+            hidden_states = outputs.decoder_hidden_states  # Tuple of (embedding, block1, ..., block24)
+            keep = dec_mask.bool()[0]
+            
+            for layer in layers:
+                # FIXED: Add +1 to skip embedding layer
+                idx = layer + 1
+                if idx >= len(hidden_states):
+                    raise ValueError(f"ProtT5 decoder: requested layer {layer}, only {len(hidden_states)-1} blocks available.")
+                buffers[layer].append(_to_numpy(hidden_states[idx][0, keep, :]))
+            
+            del outputs, hidden_states
+    
+    del model
+    _clear_cache()
+    return {layer: np.vstack(chunks) for layer, chunks in buffers.items()}
+
+
+# ============================================================
+#                   PROTGPT2 EXTRACTOR
+# ============================================================
+
+def extract_protgpt2_embeddings(
+    sequences: List[str],
+    layers: List[int],
+    device: Optional[str] = None,
+    batch_size: Optional[int] = None,
+    max_length: int = 1024,
+) -> Dict[int, np.ndarray]:
+    """
+    Extract ProtGPT2 embeddings. WARNING: BPE tokens != residues.
+    
+    Layer indexing: layer N = output of transformer block N+1
+    - Layer 0 = first transformer block output
+    - Layer 35 = final transformer block output (36th block)
+    
+    ProtGPT2 has 36 transformer blocks, so valid layers are 0-35.
+    
+    FIXED: Now uses +1 offset to skip embedding layer, matching ESM-2 convention.
+    """
+    if not layers:
+        raise ValueError("Must request at least one ProtGPT2 layer.")
+    
+    layers = sorted(set(int(layer) for layer in layers))
+    device = _get_device(device)
+    config = _get_hw_config(device)
+    
+    if batch_size is None:
+        batch_size = config["protgpt2_batch"]
+    
+    print(f"Loading ProtGPT2 to {device} (batch={batch_size}, amp={config['use_amp']})...")
+    print(f"  Layers requested: {layers} (ProtGPT2 has 36 blocks, indices 0-35)")
+    
+    tokenizer = AutoTokenizer.from_pretrained("nferruz/ProtGPT2")
+    model_kwargs = {"torch_dtype": config["dtype"]} if config["use_amp"] else {}
+    model = AutoModelForCausalLM.from_pretrained("nferruz/ProtGPT2", **model_kwargs).to(device).eval()
+    
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    
+    buffers: Dict[int, List[np.ndarray]] = {layer: [] for layer in layers}
+    batches = [sequences[i:i + batch_size] for i in range(0, len(sequences), batch_size)]
+    
+    with torch.no_grad():
+        for batch_seqs in tqdm(batches, desc="ProtGPT2"):
+            inputs = tokenizer(batch_seqs, return_tensors="pt", padding=True,
+                             truncation=True, max_length=max_length)
+            inputs = {k: v.to(device) for k, v in inputs.items()}
+            
+            with _get_autocast_context(device, config["dtype"], config["use_amp"]):
+                out = model(**inputs, output_hidden_states=True, return_dict=True)
+            hidden_states = out.hidden_states  # Tuple of (embedding, block1, ..., block36)
+            
+            for i in range(len(batch_seqs)):
+                keep = inputs["attention_mask"][i].bool()
+                for layer in layers:
+                    # FIXED: Add +1 to skip embedding layer
+                    # hidden_states[0] = embedding, hidden_states[1] = block 1, ..., hidden_states[36] = block 36
+                    idx = layer + 1
+                    if idx >= len(hidden_states):
+                        raise ValueError(f"ProtGPT2: requested layer {layer}, only {len(hidden_states)-1} blocks available.")
+                    buffers[layer].append(_to_numpy(hidden_states[idx][i, keep, :]))
+            
+            del out, hidden_states
+    
+    del model
+    _clear_cache()
+    return {layer: np.vstack(chunks) for layer, chunks in buffers.items()}
+
+
+# ============================================================
+#                   LAYER RECOMMENDATIONS
+# ============================================================
+
+"""
+RECOMMENDED LAYERS FOR CROSS-MODEL COMPARISON (relative depth matching):
+
+| Depth | ESM-2 (33 blocks) | ProtGPT2 (36 blocks) | ProtT5 (24 blocks) |
+|-------|-------------------|----------------------|--------------------|
+| ~0%   | 0                 | 0                    | 0                  |
+| ~25%  | 8                 | 9                    | 6                  |
+| ~50%  | 16                | 18                   | 12                 |
+| ~75%  | 24                | 27                   | 18                 |
+| 100%  | 32                | 35                   | 23                 |
+
+Example usage:
+
+    # ESM-2
+    esm2_layers = [0, 8, 16, 24, 32]
+    embeddings = extract_esm2_embeddings(sequences, esm2_layers)
+    
+    # ProtGPT2
+    protgpt2_layers = [0, 9, 18, 27, 35]
+    embeddings = extract_protgpt2_embeddings(sequences, protgpt2_layers)
+    
+    # ProtT5
+    prott5_layers = [0, 6, 12, 18, 23]
+    embeddings = extract_prott5_encoder_embeddings(sequences, prott5_layers)
+    embeddings = extract_prott5_decoder_embeddings(sequences, prott5_layers)
+"""
