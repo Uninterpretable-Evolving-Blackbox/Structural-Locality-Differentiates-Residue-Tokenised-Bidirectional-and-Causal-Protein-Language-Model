@@ -7,11 +7,16 @@ TopK Sparse Autoencoders (Gao et al., 2024) trained on four protein language mod
 | Hypothesis | Result | Effect size |
 |---|---|---|
 | **H1**: ESM-2 structural locality > ProtGPT2 | **5/5 depths supported** | Cohen's d = 0.6–1.9 |
-| **H2**: ProtGPT2 sequential locality > ESM-2 | **5/5 depths supported** | Cohen's d = 1.7–5.9 |
+| **H2** (raw): ProtGPT2 sequential locality > ESM-2 | **5/5 depths supported** | Cohen's d = 1.7–5.9 |
+| **H2′** (BPE-corrected, inter-token): ESM-2 sequential locality > ProtGPT2 | **5/5 depths supported (direction reversed)** | Cohen's d = 1.5–6.1 |
 | **H3**: ProtT5 encoder vs decoder | **Depth-dependent reversal** | Early: decoder wins; Late: encoder wins |
 | Multi-seed reproducibility | d std < 0.05 across 3 seeds | SAE training essentially deterministic |
 | k-robustness (k=128 vs k=256) | 10/10 H1/H2 contrasts preserved | Effect direction robust |
+| Data-split robustness (split seed=99) | H1+H2′ direction preserved 5/5 | Per-depth d delta ≤ 0.07 |
+| Metric-choice robustness (9 cells) | 45/45 H1 + 45/45 H2′ cells significant | Cohen's d consistent across seq_gap × topk_frac grid |
 | Activation clamping (causal) | Ablation drops contact precision | Wilcoxon p = 0.006 |
+
+H2 (raw) on residue-projected ProtGPT2 activations is **substantially a BPE tokenization artifact**: 50.0% of ±1/±2 residue neighbor pairs in the projection are bit-identical by construction, because every residue inside a BPE token shares the same activation vector. The corrected test (H2′) restricts sequential locality to *inter-token* neighbor pairs — the only regime comparable to residue-level ESM-2 — and reverses the direction at all five matched depths. See the **BPE-crossing control** section below.
 
 ## Models and Depth Matching
 
@@ -119,6 +124,77 @@ PYTHONUNBUFFERED=1 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
     --save-dir results_clamping_esm2_l16
 ```
 
+### BPE-crossing control (H2′)
+
+```bash
+# Single-layer (original single-depth experiment)
+.venv/bin/python experiment_bpe_correction.py \
+    --layer-dir outputs_layerwise/protgpt2/layer_18 \
+    --esm2-layer-dir outputs_layerwise/esm2/layer_16 \
+    --save-dir results_bpe_crossing_l18
+
+# All 5 matched depths on the main run (~15 min)
+.venv/bin/python experiment_bpe_crossing_all_depths.py \
+    --outputs-dir outputs_layerwise \
+    --out        results_bpe_crossing \
+    --n-shuffles 5
+
+# Same, on any robustness run (seed43/44/k128/split99)
+.venv/bin/python experiment_bpe_crossing_all_depths.py \
+    --outputs-dir outputs_layerwise_seed43 \
+    --out        results_bpe_crossing_seed43 \
+    --n-shuffles 5
+```
+
+### Val-only checks
+
+```bash
+# H1/H2 on 150-protein val subset with the raw (original) sequential metric
+.venv/bin/python experiment_val_only_h1h2.py --n-shuffles 5
+
+# H2' on val, using the BPE-corrected inter-token adjacency
+.venv/bin/python experiment_h2prime_valonly.py --n-shuffles 5
+```
+
+### Data-split robustness (SPLIT_SEED)
+
+```bash
+# Full pipeline rerun with a different 150-protein val split (~7 hr)
+SAE_SEED=42 SPLIT_SEED=99 RUN_SUFFIX=_split99 ./run_all.sh all
+
+# Then BPE-crossing on the new ProtGPT2 outputs
+.venv/bin/python experiment_bpe_crossing_all_depths.py \
+    --outputs-dir outputs_layerwise_split99 \
+    --out        results_bpe_crossing_split99 \
+    --n-shuffles 5
+```
+
+### Metric hyperparameter sweep
+
+```bash
+# 9-cell grid: seq_gap_min ∈ {8,12,24} × topk_frac ∈ {0.05,0.10,0.20} (~2.5 hr)
+.venv/bin/python experiment_metric_sweep.py \
+    --outputs-dir outputs_layerwise \
+    --out        results_metric_sweep \
+    --n-shuffles 5
+```
+
+### Overnight robustness chain (split99 + BPE crossing + metric sweep)
+
+```bash
+./run_overnight.sh    # runs sequentially; tee to overnight.log for review
+```
+
+### Preflight check (30 s)
+
+```bash
+.venv/bin/python experiment_preflight.py
+```
+
+Validates that cache files, layer outputs, META.val_uids, ProtGPT2 BPE
+round-trip, and all five matched-depth pairs are in place before
+committing overnight compute.
+
 ### Smoke test
 
 ```bash
@@ -135,6 +211,7 @@ PYTHONUNBUFFERED=1 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
 | `K_SPARSE` | `256` | `run_all.sh`, `run_unsupervised.py` | Number of active latents per token |
 | `EXPANSION` | `8` | `run_all.sh`, `run_unsupervised.py` | SAE expansion factor (hidden_dim = input_dim x expansion) |
 | `RUN_SUFFIX` | `""` | `run_all.sh`, `run_unsupervised.py` | Output directory suffix (e.g., `_seed43`, `_k128`) |
+| `SPLIT_SEED` | `42` | `run_unsupervised.py` | Protein-level 90/10 train/val split seed. Override to probe robustness to protein subset (set RUN_SUFFIX so outputs don't clobber the main run) |
 | `SAE_BATCH` | `4096` | `train_sae.py` | SAE training batch size (MPS) |
 | `SAE_CPU_BATCH` | `4096` | `train_sae.py` | SAE training batch size (CPU, >= 8 cores) |
 | `ESM2_BATCH` | `32` | `extract_embeddings.py` | ESM-2 inference batch size (MPS) |
@@ -223,6 +300,20 @@ results_clamping_esm2_l16/
 | `aggregate_seeds.py` | Combines multi-seed (42, 43, 44) runs into cross-seed mean +/- std summaries |
 | `experiment_activation_clamping.py` | Causal intervention: ablate/amplify top SAE features during ESM-2 forward pass |
 | `subsample_dataset.py` | Deterministic fold-stratified subsampling from full SCOPe to N proteins |
+
+### Post-submission robustness scripts
+| File | Description |
+|---|---|
+| `experiment_bpe_correction.py` | Single-layer BPE intra-token exclusion for ProtGPT2 sequential locality (the H2′ metric) |
+| `experiment_bpe_crossing_all_depths.py` | Wrapper: runs the above at all 5 matched depths and aggregates H2′ |
+| `experiment_val_only_h1h2.py` | Recomputes H1 and H2 on the 150-protein val subset (raw metric) |
+| `experiment_h2prime_valonly.py` | Recomputes H2′ (inter-token) on val, using existing ESM-2 val CSV |
+| `experiment_metric_sweep.py` | Joint sweep over `seq_gap_min` × `topk_frac` grid, with H1/H2′ per cell |
+| `experiment_preflight.py` | 30 s sanity check for all cached artifacts before committing overnight compute |
+| `experiment_expanded_annotations.py` | (Limitation 3) continuous RSA + UniProt functional-site probes |
+| `experiment_stability.py` | (Limitations 1 + 5) cross-seed decoder cosine similarity + depth interpolation |
+| `run_h2_robustness.sh` | Runs BPE-crossing on the 3 existing non-main runs (seed43/44/k128) |
+| `run_overnight.sh` | Sequential chain: split99 full pipeline → BPE crossing on split99 → metric sweep |
 
 ### Utilities
 | File | Description |

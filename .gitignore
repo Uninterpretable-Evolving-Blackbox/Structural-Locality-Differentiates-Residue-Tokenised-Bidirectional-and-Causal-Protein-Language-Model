@@ -8,6 +8,18 @@ __pycache__/
 outputs_layerwise*/
 analysis_results*/
 results_clamping*/
+results_bpe_crossing*/
+results_bpe_correction*/
+results_metric_sweep*/
+
+# Internal strategy notes — kept local until paper rewrite lands
+draft_option2.md
+
+# Circular zip-download of this repo
+submission_2-main/
+
+# Older / archive scripts outside the tracked set
+legacy/
 
 # Cached data (large, reproducible)
 cache/pdb_files/

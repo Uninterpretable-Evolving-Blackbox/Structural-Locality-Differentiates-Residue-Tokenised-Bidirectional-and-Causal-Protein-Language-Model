@@ -65,9 +65,13 @@ K_AUX = 64           # auxiliary loss for dead-latent recovery
 # resurrection happens early in training, not after the LR has decayed.
 DEAD_THRESHOLD = 1_000_000
 
-# Train/Val split (protein-level, FIXED across all models AND seeds so we
-# vary only the SAE training stochasticity, not which proteins are held out)
-SPLIT_SEED = 42
+# Train/Val split (protein-level).  Default is FIXED across all models and
+# SAE_SEED values, so by default only SAE training stochasticity varies and
+# all 4 models hold out the same 150 proteins.  Override SPLIT_SEED via env
+# var to probe robustness to protein subset selection; RUN_SUFFIX MUST be
+# set to a distinct value (e.g. _split99) or outputs will clobber the main
+# seed=42 run.
+SPLIT_SEED = int(os.environ.get("SPLIT_SEED", 42))
 VAL_FRACTION = 0.10
 
 # SAE training random seed — varies with SAE_SEED env var.  Default 42 is
