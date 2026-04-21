@@ -9,23 +9,34 @@ TopK Sparse Autoencoders (Gao et al., 2024) trained on four protein language mod
 | **H1**: ESM-2 structural locality > ProtGPT2 | **5/5 depths supported** | Cohen's d = 0.6–1.9 |
 | **H2** (raw): ProtGPT2 sequential locality > ESM-2 | **5/5 depths supported** | Cohen's d = 1.7–5.9 |
 | **H2′** (BPE-corrected, inter-token): ESM-2 sequential locality > ProtGPT2 | **5/5 depths supported (direction reversed)** | Cohen's d = 1.5–6.1 |
-| **H3**: ProtT5 encoder vs decoder | **Depth-dependent reversal** | Early: decoder wins; Late: encoder wins |
-| Multi-seed reproducibility | d std < 0.05 across 3 seeds | SAE training essentially deterministic |
-| k-robustness (k=128 vs k=256) | 10/10 H1/H2 contrasts preserved | Effect direction robust |
+| **H3**: ProtT5 encoder vs decoder (5-point) | **Depth-dependent reversal** | Early: decoder wins; Late: encoder wins |
+| **H3 densified (9 points)** | Crossover localised to **L9–L12** (≈ 42% rel. depth); seq-locality has 3 flips | See appendix `H3_enc_vs_dec_dense` |
+| **H1/H2 residue-level (RITA, 5 variants)** | H1 25/25 depth×variant cells, H2 depth-dependent | H1 d = 0.14–1.44; H2 d = −2.40..+1.15 with L100% flip |
+| **ESM-2 H5 densified (9 points)** | L0 front-loading preserved; mid-peak L16/20, late rebound L32 | Mean struct_delta +0.005 to +0.143 |
+| **RITA H5 densified (9 points)** | No systematic depth trend; flat within 95% CI | Pearson r = +0.00 |
+| Multi-seed reproducibility | d std < 0.05 across 3 seeds (ESM-2, ProtGPT2, ProtT5, RITA) | SAE training essentially deterministic |
+| k-robustness (k=128 vs k=256) | Direction preserved across ESM-2/ProtGPT2/ProtT5/RITA | Attenuated magnitude but sign-stable |
 | Data-split robustness (split seed=99) | H1+H2′ direction preserved 5/5 | Per-depth d delta ≤ 0.07 |
-| Metric-choice robustness (9 cells) | 45/45 H1 + 45/45 H2′ cells significant | Cohen's d consistent across seq_gap × topk_frac grid |
-| Activation clamping (causal) | Ablation drops contact precision | Wilcoxon p = 0.006 |
+| Metric-choice robustness (9 cells × 5 depths) | 45/45 H1 + 45/45 H2′ (ProtGPT2); 36/45 H1 + 9/45 H2 (RITA) | Cohen's d consistent across seq_gap × topk_frac grid |
+| Activation clamping (ESM-2 layer 16) | Ablation drops contact precision | Wilcoxon p = 0.006 |
+| ProGen2 degeneracy (methodological note) | SAE val_EV saturates 0.985–0.9999 → basis not unique | Paper-dropped; scripts retained in repo |
 
 H2 (raw) on residue-projected ProtGPT2 activations is **substantially a BPE tokenization artifact**: 50.0% of ±1/±2 residue neighbor pairs in the projection are bit-identical by construction, because every residue inside a BPE token shares the same activation vector. The corrected test (H2′) restricts sequential locality to *inter-token* neighbor pairs — the only regime comparable to residue-level ESM-2 — and reverses the direction at all five matched depths. See the **BPE-crossing control** section below.
 
 ## Models and Depth Matching
 
-| Model | Architecture | Params | Layers probed (0%, 25%, 50%, 75%, 100%) |
-|---|---|---|---|
-| ESM-2 (t33) | Bidirectional encoder (MLM) | 650M | 0, 8, 16, 24, 32 |
-| ProtGPT2 | Causal decoder (CLM) | 738M | 0, 9, 18, 27, 35 |
-| ProtT5-enc | Bidirectional encoder (seq2seq) | ~1.2B | 0, 6, 12, 18, 23 |
-| ProtT5-dec | Autoregressive decoder (seq2seq) | ~3B | 0, 6, 12, 18, 23 |
+| Model | Architecture | Params | Tokenization | Default depths (0%, 25%, 50%, 75%, 100%) |
+|---|---|---|---|---|
+| ESM-2 (t33) | Bidirectional encoder (MLM) | 650M | residue | 0, 8, 16, 24, 32 |
+| ProtGPT2 | Causal decoder (CLM) | 738M | BPE | 0, 9, 18, 27, 35 |
+| ProtT5-enc | Bidirectional encoder (seq2seq) | ~1.2B | residue | 0, 6, 12, 18, 23 |
+| ProtT5-dec | Autoregressive decoder (seq2seq) | ~3B | residue | 0, 6, 12, 18, 23 |
+| RITA_l | Causal decoder (CLM) | 680M | **residue** | 0, 6, 12, 18, 23 |
+| ProGen2-medium | Causal decoder (CLM) | 764M | **residue** | 0, 7, 14, 20, 26 |
+
+**Residue-level causal comparator note:** ProtGPT2's BPE tokenizer means 50% of ±1/±2 residue-neighbour pairs share a token and are bit-identical by construction, biasing the original H2 sequential-locality test. RITA_l and ProGen2 both use 1 token per residue, so their H2 is directly comparable to residue-level ESM-2 without BPE correction. RITA is the primary residue-level causal comparator in v6; ProGen2 was also fully evaluated but dropped from the headline because its SAE val_EV saturates at 0.985–0.9999, producing a degenerate (non-uniquely-identified) feature basis with cross-seed Cohen's d SD 10–50× larger than ESM-2/ProtGPT2. ProGen2 scripts are kept in the repo as a methodological negative-result datapoint.
+
+**Densification grids (appendix):** two experiments expand sampling from 5 to 9 depths per model. ProtT5 enc+dec densify to `{0, 3, 6, 9, 12, 15, 18, 21, 23}` for localising the H3 encoder-vs-decoder structural-locality crossover. ESM-2 densifies to `{0, 4, 8, 12, 16, 20, 24, 28, 32}` and RITA to `{0, 3, 6, 9, 12, 15, 18, 21, 23}` for H5-style within-model depth-trend appendix figures.
 
 ## Dataset
 
@@ -185,6 +196,80 @@ SAE_SEED=42 SPLIT_SEED=99 RUN_SUFFIX=_split99 ./run_all.sh all
 ./run_overnight.sh    # runs sequentially; tee to overnight.log for review
 ```
 
+### Residue-level causal comparator — RITA_l (v6 headline)
+
+```bash
+# Smoke test (loads RITA_l ~3 GB from HF on first run; ~30 s if cached)
+.venv/bin/python smoke_test_rita.py
+
+# Single-seed main run (MODEL=rita only; ~1.5 hr on MPS)
+./run_rita.sh
+
+# Full 5-variant robustness package + val-only + 9-cell metric sweep + aggregator
+# (~8 hr on MPS; mirrors the ProtGPT2 overnight chain for ESM-2 vs RITA)
+./run_rita_overnight.sh  2>&1 | tee rita_overnight.log
+```
+
+Produces `analysis_results_rita{,_seed43,_seed44,_k128,_split99}/comparison/`,
+`analysis_results_valonly_rita/`, `results_metric_sweep_rita/`, and the
+5-run master table `analysis_results_master_rita/`.
+
+### Residue-level causal comparator — ProGen2 (retained but paper-dropped)
+
+ProGen2 was evaluated alongside RITA but **its SAE val_EV saturates at
+0.985–0.9999, producing a degenerate feature basis (cross-seed Cohen's d
+SD 10–50× that of the other models).** Scripts are retained as a
+methodological negative-result datapoint; the paper's residue-level causal
+claim rests on RITA. To reproduce the ProGen2 chain:
+
+```bash
+.venv/bin/python smoke_test_progen2.py
+./run_progen2_overnight.sh   2>&1 | tee progen2_overnight.log
+```
+
+### ProtT5 depth densification (appendix — H3 crossover localisation)
+
+Adds 4 new depths per side (enc + dec), expanding the 5-point grid to
+`{0, 3, 6, 9, 12, 15, 18, 21, 23}`. The de-risk gate trains ProtT5-dec
+layer 9 first and checks that val_EV and mean struct_delta fit smoothly
+between existing neighbours before committing to the remaining 7 SAEs.
+
+```bash
+./run_prott5_densify.sh  2>&1 | tee prott5_densify.log
+```
+
+Produces `analysis_results/comparison/H3_enc_vs_dec_dense.{csv,png,pdf,txt}`
+with per-layer enc-vs-dec Cohen's d for both `struct_delta` and `seq_delta`
+and a linearly-interpolated zero-crossing marker.
+
+### ESM-2 + RITA within-model H5 densification (appendix — depth-trend)
+
+Adds 4 new depths per model. ESM-2: `{0,4,8,12,16,20,24,28,32}`. RITA:
+`{0,3,6,9,12,15,18,21,23}`. Switches reporting from per-feature Spearman
+(statistically weak at 5 points) to per-layer mean `struct_delta` with
+bootstrap 95% CI across features. De-risk gate trains ESM-2 layer 12 first.
+
+```bash
+./run_esm_rita_densify.sh  2>&1 | tee esm_rita_densify.log
+```
+
+Produces `analysis_results/comparison/H5_within_model_dense.{csv,png,pdf,txt}`.
+
+### Per-model layer-list env-var overrides
+
+The densification experiments use four env vars that override the
+default 5-depth matched-depth plan without editing source:
+
+```bash
+ESM2_LAYERS="0,4,8,12,16,20,24,28,32"        MODEL=esm2      ./run_all.sh esm2
+RITA_LAYERS="0,3,6,9,12,15,18,21,23"          MODEL=rita      ./run_all.sh rita
+PROTT5_ENC_LAYERS="0,3,6,9,12,15,18,21,23"    MODEL=prott5_enc ./run_all.sh prott5_enc
+PROTT5_DEC_LAYERS="0,3,6,9,12,15,18,21,23"    MODEL=prott5_dec ./run_all.sh prott5_dec
+```
+
+Existing layer directories with `META.json` skip at the per-layer level, so
+only the new layers re-train; no retraining of committed SAEs.
+
 ### Preflight check (30 s)
 
 ```bash
@@ -206,17 +291,23 @@ committing overnight compute.
 | Variable | Default | Used by | Description |
 |---|---|---|---|
 | `DEVICE` | auto-detect | `run_all.sh`, `run_unsupervised.py` | Compute device: `cuda`, `mps`, or `cpu` |
-| `MODEL` | `all` | `run_all.sh`, `run_unsupervised.py` | Which PLM(s): `esm2`, `protgpt2`, `prott5_enc`, `prott5_dec`, or `all` |
+| `MODEL` | `all` | `run_all.sh`, `run_unsupervised.py` | Which PLM(s): `esm2`, `protgpt2`, `prott5_enc`, `prott5_dec`, `rita`, `progen2`, or `all` |
 | `SAE_SEED` | `42` | `run_all.sh`, `run_unsupervised.py` | SAE weight initialization seed |
 | `K_SPARSE` | `256` | `run_all.sh`, `run_unsupervised.py` | Number of active latents per token |
 | `EXPANSION` | `8` | `run_all.sh`, `run_unsupervised.py` | SAE expansion factor (hidden_dim = input_dim x expansion) |
 | `RUN_SUFFIX` | `""` | `run_all.sh`, `run_unsupervised.py` | Output directory suffix (e.g., `_seed43`, `_k128`) |
 | `SPLIT_SEED` | `42` | `run_unsupervised.py` | Protein-level 90/10 train/val split seed. Override to probe robustness to protein subset (set RUN_SUFFIX so outputs don't clobber the main run) |
+| `ESM2_LAYERS` | `0,8,16,24,32` | `run_unsupervised.py` | Comma-sep override for ESM-2 layer list. Used by the H5 densification. |
+| `RITA_LAYERS` | `0,6,12,18,23` | `run_unsupervised.py` | Comma-sep override for RITA layer list. Used by the H5 densification. |
+| `PROTT5_ENC_LAYERS` | `0,6,12,18,23` | `run_unsupervised.py` | Comma-sep override for ProtT5-enc layer list. Used by the H3 crossover densification. |
+| `PROTT5_DEC_LAYERS` | `0,6,12,18,23` | `run_unsupervised.py` | Comma-sep override for ProtT5-dec layer list. Used by the H3 crossover densification. |
 | `SAE_BATCH` | `4096` | `train_sae.py` | SAE training batch size (MPS) |
 | `SAE_CPU_BATCH` | `4096` | `train_sae.py` | SAE training batch size (CPU, >= 8 cores) |
 | `ESM2_BATCH` | `32` | `extract_embeddings.py` | ESM-2 inference batch size (MPS) |
 | `PROTT5_BATCH` | `4` | `extract_embeddings.py` | ProtT5 inference batch size (MPS) |
 | `PROTGPT2_BATCH` | `16` | `extract_embeddings.py` | ProtGPT2 inference batch size (MPS) |
+| `RITA_BATCH` | `12` | `extract_embeddings.py` | RITA inference batch size (MPS) |
+| `PROGEN2_BATCH` | `12` | `extract_embeddings.py` | ProGen2 inference batch size (MPS) |
 | `CPU_STAGE_MEM_GB` | `100` | `cpu_stage.py` | Memory budget for parallel workers (GB) |
 | `SAE_PRECISION` | `fp32` | `train_sae.py` | Override to `fp16` for MPS (not recommended) |
 
@@ -285,7 +376,7 @@ results_clamping_esm2_l16/
 |---|---|
 | `run_all.sh` | End-to-end orchestrator: dataset build -> GPU stage -> CPU stage -> hypothesis tests |
 | `build_dataset.py` | Downloads SCOPe proteins, filters by length/coverage, extracts DSSP labels |
-| `extract_embeddings.py` | Extracts hidden states from ESM-2, ProtGPT2, ProtT5-enc, ProtT5-dec at specified layers |
+| `extract_embeddings.py` | Extracts hidden states from ESM-2, ProtGPT2, ProtT5-enc, ProtT5-dec, RITA_l, ProGen2 at specified layers |
 | `sae.py` | TopK Sparse Autoencoder model (encoder, decoder, AuxK loss, dead-latent tracking) |
 | `train_sae.py` | SAE training loop with mixed precision, hardware auto-config, explained variance computation |
 | `run_unsupervised.py` | GPU stage driver: loads dataset, protein-level split, trains SAEs per layer, computes holdout EV |
@@ -314,6 +405,33 @@ results_clamping_esm2_l16/
 | `experiment_stability.py` | (Limitations 1 + 5) cross-seed decoder cosine similarity + depth interpolation |
 | `run_h2_robustness.sh` | Runs BPE-crossing on the 3 existing non-main runs (seed43/44/k128) |
 | `run_overnight.sh` | Sequential chain: split99 full pipeline → BPE crossing on split99 → metric sweep |
+
+### Residue-level causal comparator scripts (v6)
+| File | Description |
+|---|---|
+| `experiment_h1h2_rita.py` | Clean H1/H2 test: ESM-2 vs RITA at 5 matched depths (no BPE correction needed) |
+| `experiment_val_only_rita.py` | H1/H2 on the 150-protein val subset for ESM-2 vs RITA |
+| `experiment_metric_sweep_rita.py` | 9-cell `seq_gap_min × topk_frac` sweep for ESM-2 vs RITA H1/H2 |
+| `aggregate_rita_robustness.py` | Consolidates the 5-run RITA robustness table (main/seed43/seed44/k128/split99) |
+| `smoke_test_rita.py` | End-to-end RITA integration check (tokenizer 1:1, model load, layer indexing) |
+| `run_rita.sh` | Single-seed RITA pipeline (MODEL=rita only) |
+| `run_rita_overnight.sh` | Full 5-variant robustness chain + val-only + metric sweep + aggregator |
+| `experiment_h1h2_progen2.py` | H1/H2 test: ESM-2 vs ProGen2 (retained for provenance; see Known Issues) |
+| `experiment_val_only_progen2.py` | Val-only ProGen2 variant |
+| `experiment_metric_sweep_progen2.py` | 9-cell sweep for ProGen2 |
+| `aggregate_progen2_robustness.py` | 5-run ProGen2 master table |
+| `smoke_test_progen2.py` | ProGen2 integration smoke test |
+| `run_progen2_overnight.sh` | Full 5-variant ProGen2 chain (retained as methodological-null datapoint) |
+
+### Densification scripts (v6 appendix)
+| File | Description |
+|---|---|
+| `experiment_prott5_densify_check.py` | De-risk gate for the ProtT5 H3 densification (ProtT5-dec L9 val_EV + smoothness check) |
+| `experiment_prott5_densify_analysis.py` | H3 enc-vs-dec on 9 probes per side; finds crossover, writes `H3_enc_vs_dec_dense.{csv,png,pdf,txt}` |
+| `run_prott5_densify.sh` | Orchestrator: de-risk → gate → full dec → full enc → analysis + plot |
+| `experiment_esm_rita_densify_check.py` | De-risk gate for the ESM-2/RITA H5 densification (ESM-2 L12) |
+| `experiment_esm_rita_densify_analysis.py` | Bootstrap 95% CI on mean `struct_delta` per layer; writes `H5_within_model_dense.{csv,png,pdf,txt}` |
+| `run_esm_rita_densify.sh` | Orchestrator: de-risk → gate → full ESM-2 → full RITA → analysis + plot |
 
 ### Utilities
 | File | Description |
@@ -349,6 +467,10 @@ results_clamping_esm2_l16/
 - **MPS `.data =` bug**: PyTorch's MPS backend silently corrupts `nn.Linear` forward outputs when `Parameter.data` is reassigned to a new tensor (the deprecated `param.data = new_tensor` pattern). The Parameter reads back as bit-identical to CPU, but `F.linear` produces wrong results (~70 unit max diff). Fixed by using `param.copy_(new_tensor)` throughout `sae.py`.
 - **Activation clamping on MPS**: The intervention hook mixes fp16 (ESM-2 model) with fp32 (SAE model) tensors, triggering an MPS matmul dtype assertion. Use `--device cpu` as a workaround.
 - **PLM outlier features**: ESM-2/ProtGPT2/ProtT5 hidden states have outlier dimensions with magnitudes 50-100x the typical scale (cf. Dettmers et al., 2022). Without Bricken normalization, SAE training diverges (negative EV, loss U-curves).
+- **RITA fp16 checkpoint**: transformers 5.x honours the checkpoint's saved dtype by default, and RITA_l ships fp16. Its custom attention code upcasts softmax to fp32 for numerical stability, producing an `att @ v` dtype mismatch (raises on CPU, silently NaNs middle blocks on MPS). `extract_rita_embeddings` loads with `torch_dtype=torch.float32` and `.float()` to force fp32 end-to-end.
+- **ProGen2 SAE degeneracy**: ProGen2's activations are intrinsically near-low-rank. SAE val_EV saturates at 0.985–0.9999 across depths and seeds, producing a non-uniquely-identified feature basis. Cross-seed Cohen's d SD is 10–50× that of ESM-2/ProtGPT2/ProtT5/RITA. Lowering k to 128 does not fix this. ProGen2 is retained in the codebase as a methodological datapoint but is not cited in the paper's H1/H2 claims.
+- **RITA L3 high EV**: the H5 densification adds RITA layer 3, where val_EV = 0.9989 (≥ 0.99 — the ProGen2-adjacency threshold). RITA SAE bases are cross-seed stable elsewhere, but single-seed L3 is within the degeneracy regime. Aggregate `mean(struct_delta)` with 12k-feature bootstrap CI is robust, but feature-level claims at L3 should be cross-seed-verified before citing.
+- **ProtT5 `H3_enc_vs_dec` vs `H4` naming**: the v5 paper labelled this "H4" (in `analyze_hypotheses.py` and `H4_enc_vs_dec.csv`); v6 reframes it as "H3" following the post-submission hypothesis numbering. The densified output is written to `H3_enc_vs_dec_dense.*` and lives alongside the v5 `H4_enc_vs_dec.*` rather than replacing it.
 
 ## Citation
 

@@ -81,7 +81,7 @@ echo "──── Step 2: Structural analysis (CPU stage) ────"
 
 # Determine which models to process
 if [ "$MODEL" = "all" ]; then
-    MODELS=("esm2" "protgpt2" "prott5_enc" "prott5_dec")
+    MODELS=("esm2" "protgpt2" "prott5_enc" "prott5_dec" "rita" "progen2")
 else
     MODELS=("$MODEL")
 fi

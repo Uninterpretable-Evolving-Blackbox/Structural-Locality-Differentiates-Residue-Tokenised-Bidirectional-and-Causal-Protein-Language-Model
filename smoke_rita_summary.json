@@ -1,0 +1,13 @@
+{
+  "model_name": "lightonai/RITA_l",
+  "device": "mps",
+  "n_blocks_reported": 24,
+  "hidden_dim": 1536,
+  "residues_total": 85,
+  "layers_returned": [
+    0,
+    12,
+    23
+  ],
+  "tokenizer_1to1": true
+}

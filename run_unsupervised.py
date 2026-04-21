@@ -23,6 +23,8 @@ from extract_embeddings import (
     extract_protgpt2_embeddings,
     extract_prott5_encoder_embeddings,
     extract_prott5_decoder_embeddings,
+    extract_rita_embeddings,
+    extract_progen2_embeddings,
 )
 from train_sae import (
     train_sae,
@@ -135,7 +137,10 @@ MODEL_PLANS = {
     "esm2": (
         "ESM-2 t33 (650M)",
         extract_esm2_embeddings,
-        [0, 8, 16, 24, 32],
+        # Env override lets the H5 densify experiment add layers
+        # {4, 12, 20, 28} without touching the default 5-depth plan.
+        [int(x) for x in os.environ["ESM2_LAYERS"].split(",")]
+        if os.environ.get("ESM2_LAYERS") else [0, 8, 16, 24, 32],
     ),
     "protgpt2": (
         "ProtGPT2 (~738M)",
@@ -145,12 +150,32 @@ MODEL_PLANS = {
     "prott5_enc": (
         "ProtT5 encoder",
         extract_prott5_encoder_embeddings,
-        [0, 6, 12, 18, 23],
+        # Env override lets the densify experiment add layers {3,9,15,21}
+        # without touching the default 5-depth plan used by the paper.
+        [int(x) for x in os.environ["PROTT5_ENC_LAYERS"].split(",")]
+        if os.environ.get("PROTT5_ENC_LAYERS") else [0, 6, 12, 18, 23],
     ),
     "prott5_dec": (
         "ProtT5 decoder",
         extract_prott5_decoder_embeddings,
-        [0, 6, 12, 18, 23],
+        [int(x) for x in os.environ["PROTT5_DEC_LAYERS"].split(",")]
+        if os.environ.get("PROTT5_DEC_LAYERS") else [0, 6, 12, 18, 23],
+    ),
+    # RITA_l: 24 blocks, 680M — alternative residue-level AR comparator.
+    "rita": (
+        "RITA_l (680M)",
+        extract_rita_embeddings,
+        # Env override for H5 densification {3, 9, 15, 21}.
+        [int(x) for x in os.environ["RITA_LAYERS"].split(",")]
+        if os.environ.get("RITA_LAYERS") else [0, 6, 12, 18, 23],
+    ),
+    # ProGen2-medium: 27 blocks, 764M — residue-level autoregressive,
+    # widely cited (Nijkamp 2022). Size-matched to ProtGPT2 (738M) and
+    # close to ESM-2 (650M). Preferred residue-level causal comparator.
+    "progen2": (
+        "ProGen2 medium (~764M)",
+        extract_progen2_embeddings,
+        [0, 7, 14, 20, 26],
     ),
 }
 

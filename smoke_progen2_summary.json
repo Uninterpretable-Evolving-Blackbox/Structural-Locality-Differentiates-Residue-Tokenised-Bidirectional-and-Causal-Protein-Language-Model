@@ -1,0 +1,13 @@
+{
+  "model_name": "hugohrban/progen2-medium",
+  "device": "mps",
+  "n_blocks": 27,
+  "hidden_dim": 1536,
+  "residues_total": 85,
+  "layers_returned": [
+    0,
+    13,
+    26
+  ],
+  "tokenizer_1to1": true
+}
