@@ -12,6 +12,16 @@ results_bpe_crossing*/
 results_bpe_correction*/
 results_metric_sweep*/
 
+# Robustness — large raw L0 hidden states (regeneratable from PLM)
+outputs_robustness/raw_l0_*.npy
+outputs_robustness/__pycache__/
+
+# Sweep outputs — keep aggregates + summary, drop bulky raw concat & per-cell tables
+results_cutoff_sweep/cutoff_raw.csv
+results_cutoff_sweep/*/
+results_seqwindow_sweep/window_raw.csv
+results_seqwindow_sweep/*/
+
 # Internal strategy notes — kept local until paper rewrite lands
 draft_option2.md
 

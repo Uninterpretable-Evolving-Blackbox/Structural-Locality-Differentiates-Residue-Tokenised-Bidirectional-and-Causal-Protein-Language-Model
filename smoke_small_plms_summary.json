@@ -1,0 +1,24 @@
+{
+  "esm2_small": {
+    "layers": [
+      0,
+      3,
+      6,
+      9,
+      11
+    ],
+    "hidden_dim": 480,
+    "residues": 85
+  },
+  "rita_small": {
+    "layers": [
+      0,
+      3,
+      6,
+      9,
+      11
+    ],
+    "hidden_dim": 768,
+    "residues": 85
+  }
+}

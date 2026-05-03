@@ -1,0 +1,82 @@
+hypothesis,pair,window,model_a,layer_a,model_b,layer_b,variant,cohens_d,MW_p,significant
+H2 (RITA seq > ESM-2),1,1,rita,0,esm2,0,raw,-1.3699730408979576,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),1,1,protgpt2,0,esm2,0,raw,3.4626599110970595,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),1,1,protgpt2,0,esm2,0,inter,-2.3739866841832584,1.0,False
+H2 (RITA seq > ESM-2),2,1,rita,3,esm2,4,raw,0.2602139073934675,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),2,1,protgpt2,4,esm2,4,raw,2.5713465096299113,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),2,1,protgpt2,4,esm2,4,inter,-2.9657884823147955,1.0,False
+H2 (RITA seq > ESM-2),3,1,rita,6,esm2,8,raw,-0.15941843935423416,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),3,1,protgpt2,9,esm2,8,raw,2.668802301334208,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),3,1,protgpt2,9,esm2,8,inter,-4.464215914066509,1.0,False
+H2 (RITA seq > ESM-2),4,1,rita,9,esm2,12,raw,-0.907571438956448,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),4,1,protgpt2,13,esm2,12,raw,1.9642393848483426,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),4,1,protgpt2,13,esm2,12,inter,-6.0077902543083495,1.0,False
+H2 (RITA seq > ESM-2),5,1,rita,12,esm2,16,raw,-1.836128147987279,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),5,1,protgpt2,18,esm2,16,raw,1.945374710139673,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),5,1,protgpt2,18,esm2,16,inter,-7.656100285526986,1.0,False
+H2 (RITA seq > ESM-2),6,1,rita,15,esm2,20,raw,-2.1375961646629436,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),6,1,protgpt2,22,esm2,20,raw,1.9573188412980942,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),6,1,protgpt2,22,esm2,20,inter,-5.759144990059978,1.0,False
+H2 (RITA seq > ESM-2),7,1,rita,18,esm2,24,raw,-2.1669927227288315,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),7,1,protgpt2,27,esm2,24,raw,2.613492275430421,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),7,1,protgpt2,27,esm2,24,inter,-5.551188129764383,1.0,False
+H2 (RITA seq > ESM-2),8,1,rita,21,esm2,28,raw,-0.5514491853670116,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),8,1,protgpt2,31,esm2,28,raw,4.2447134149598735,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),8,1,protgpt2,31,esm2,28,inter,-4.819224974403979,1.0,False
+H2 (RITA seq > ESM-2),9,1,rita,23,esm2,32,raw,0.9645158654737317,0.0,True
+H2 raw (ProtGPT2 seq > ESM-2),9,1,protgpt2,35,esm2,32,raw,6.495055477693005,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),9,1,protgpt2,35,esm2,32,inter,-3.989215747707856,1.0,False
+H2 (RITA seq > ESM-2),1,2,rita,0,esm2,0,raw,-1.6435881936222516,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),1,2,protgpt2,0,esm2,0,raw,3.2424097240833696,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),1,2,protgpt2,0,esm2,0,inter,-2.276056060582712,1.0,False
+H2 (RITA seq > ESM-2),2,2,rita,3,esm2,4,raw,0.1770532269931136,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),2,2,protgpt2,4,esm2,4,raw,2.511444458964237,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),2,2,protgpt2,4,esm2,4,inter,-1.9629971630974627,1.0,False
+H2 (RITA seq > ESM-2),3,2,rita,6,esm2,8,raw,-0.26186409555711615,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),3,2,protgpt2,9,esm2,8,raw,2.5825678078000607,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),3,2,protgpt2,9,esm2,8,inter,-3.006229980260471,1.0,False
+H2 (RITA seq > ESM-2),4,2,rita,9,esm2,12,raw,-1.098792336339905,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),4,2,protgpt2,13,esm2,12,raw,1.820800706314372,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),4,2,protgpt2,13,esm2,12,inter,-4.908116355940719,1.0,False
+H2 (RITA seq > ESM-2),5,2,rita,12,esm2,16,raw,-2.029196429987597,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),5,2,protgpt2,18,esm2,16,raw,1.688017877075519,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),5,2,protgpt2,18,esm2,16,inter,-6.095226983660401,1.0,False
+H2 (RITA seq > ESM-2),6,2,rita,15,esm2,20,raw,-2.3056078910228655,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),6,2,protgpt2,22,esm2,20,raw,1.7513786095510062,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),6,2,protgpt2,22,esm2,20,inter,-3.444018239216483,1.0,False
+H2 (RITA seq > ESM-2),7,2,rita,18,esm2,24,raw,-2.188246014936622,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),7,2,protgpt2,27,esm2,24,raw,2.3778338437361803,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),7,2,protgpt2,27,esm2,24,inter,-2.1212297871195966,1.0,False
+H2 (RITA seq > ESM-2),8,2,rita,21,esm2,28,raw,-0.4631387955311273,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),8,2,protgpt2,31,esm2,28,raw,4.14868230905779,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),8,2,protgpt2,31,esm2,28,inter,-1.5990261524389695,1.0,False
+H2 (RITA seq > ESM-2),9,2,rita,23,esm2,32,raw,0.9831368261191105,0.0,True
+H2 raw (ProtGPT2 seq > ESM-2),9,2,protgpt2,35,esm2,32,raw,5.91574025104584,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),9,2,protgpt2,35,esm2,32,inter,-1.4715767306713874,1.0,False
+H2 (RITA seq > ESM-2),1,4,rita,0,esm2,0,raw,-1.92325578623699,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),1,4,protgpt2,0,esm2,0,raw,2.637710116973216,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),1,4,protgpt2,0,esm2,0,inter,-2.3580376658197393,1.0,False
+H2 (RITA seq > ESM-2),2,4,rita,3,esm2,4,raw,0.028560607944446984,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),2,4,protgpt2,4,esm2,4,raw,2.4355306117805036,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),2,4,protgpt2,4,esm2,4,inter,-1.8317309465857854,1.0,False
+H2 (RITA seq > ESM-2),3,4,rita,6,esm2,8,raw,-0.6097938539008988,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),3,4,protgpt2,9,esm2,8,raw,2.3726598709056614,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),3,4,protgpt2,9,esm2,8,inter,-2.9045906550686946,1.0,False
+H2 (RITA seq > ESM-2),4,4,rita,9,esm2,12,raw,-1.6917873555030283,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),4,4,protgpt2,13,esm2,12,raw,1.4500062411747223,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),4,4,protgpt2,13,esm2,12,inter,-4.86722015832771,1.0,False
+H2 (RITA seq > ESM-2),5,4,rita,12,esm2,16,raw,-2.7908691595141915,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),5,4,protgpt2,18,esm2,16,raw,0.9629449014665494,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),5,4,protgpt2,18,esm2,16,inter,-6.152659931937313,1.0,False
+H2 (RITA seq > ESM-2),6,4,rita,15,esm2,20,raw,-2.9999322221520925,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),6,4,protgpt2,22,esm2,20,raw,1.173552945099569,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),6,4,protgpt2,22,esm2,20,inter,-3.558376866029719,1.0,False
+H2 (RITA seq > ESM-2),7,4,rita,18,esm2,24,raw,-2.663677845016476,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),7,4,protgpt2,27,esm2,24,raw,1.7025262210784857,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),7,4,protgpt2,27,esm2,24,inter,-1.9486414917090187,1.0,False
+H2 (RITA seq > ESM-2),8,4,rita,21,esm2,28,raw,-0.5438424502120155,1.0,False
+H2 raw (ProtGPT2 seq > ESM-2),8,4,protgpt2,31,esm2,28,raw,3.7312789609668324,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),8,4,protgpt2,31,esm2,28,inter,-1.1522496377501708,1.0,False
+H2 (RITA seq > ESM-2),9,4,rita,23,esm2,32,raw,1.1617700890940772,0.0,True
+H2 raw (ProtGPT2 seq > ESM-2),9,4,protgpt2,35,esm2,32,raw,5.2631787356666715,0.0,True
+H2' (ProtGPT2 inter-token seq > ESM-2),9,4,protgpt2,35,esm2,32,inter,-1.1610095668103209,1.0,False

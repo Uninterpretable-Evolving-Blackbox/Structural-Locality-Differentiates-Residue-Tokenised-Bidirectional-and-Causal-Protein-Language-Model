@@ -1,0 +1,29 @@
+Sequential-window robustness sweep
+========================================================================
+
+Windows: ±[1, 2, 4]   |   topk_frac=0.1
+
+
+--- H2 (RITA seq > ESM-2) ---
+        sum  count
+window            
+1         1      9
+2         1      9
+4         1      9
+Total: 3/27 (11%)
+
+--- H2 raw (ProtGPT2 seq > ESM-2) ---
+        sum  count
+window            
+1         9      9
+2         9      9
+4         9      9
+Total: 27/27 (100%)
+
+--- H2' (ProtGPT2 inter-token seq > ESM-2) ---
+        sum  count
+window            
+1         0      9
+2         0      9
+4         0      9
+Total: 0/27 (0%)

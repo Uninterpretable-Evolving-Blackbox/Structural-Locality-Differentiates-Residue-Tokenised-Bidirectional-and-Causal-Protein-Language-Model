@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-make_paper_fig_h1.py — Fig. 1 (H1): distribution of d_struct (top) and
-d_seq (bottom) across SAE features for ESM-2 (blue) and RITA (orange)
-at the five matched relative depths.
+make_paper_fig_h1.py — Fig. 1 (H1): distribution of L_struct (top) and
+L_seq (bottom) across SAE features for ESM-2 (blue) and RITA (orange)
+at the nine matched relative depths.
 
-Writes paper_draft/paper_submission_4/figures/h1_locality_dist.{pdf,png}.
+Writes paper_draft/paper_submission-3/figures/h1_locality_dist.{pdf,png}.
 
 ICML submissions disallow Type-3 fonts in embedded figures (matplotlib's
 default emits Type-3 DejaVuSans). We force TrueType (Type-42) for PDF and
@@ -24,7 +24,7 @@ plt.rcParams["pdf.fonttype"] = 42     # TrueType in PDF (avoids Type-3)
 plt.rcParams["ps.fonttype"]  = 42     # TrueType in PS/EPS (avoids Type-3)
 
 ROOT = Path(__file__).resolve().parent
-OUT_DIR = ROOT / "paper_draft" / "paper_submission_4" / "figures"
+OUT_DIR = ROOT / "paper_draft" / "paper_submission-3" / "figures"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # x-axis labels are paper-canonical relative-depth %s (RITA-side denominator:
@@ -106,8 +106,11 @@ def main():
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(3.5, 4.3), sharex=True,
                                    gridspec_kw={"hspace": 0.12})
 
-    paired_violin(ax1, depth_labels, esm_struct, rita_struct, r"$d_\mathrm{struct}$")
-    paired_violin(ax2, depth_labels, esm_seq,    rita_seq,    r"$d_\mathrm{seq}$")
+    # Y-axis labels match the paper's locality-score notation L_struct / L_seq.
+    # matplotlib's mathtext doesn't support \text; \mathrm renders identically
+    # to LaTeX's $L_{\text{struct}}$ / $L_{\text{seq}}$.
+    paired_violin(ax1, depth_labels, esm_struct, rita_struct, r"$L_\mathrm{struct}$")
+    paired_violin(ax2, depth_labels, esm_seq,    rita_seq,    r"$L_\mathrm{seq}$")
     ax2.set_xlabel("Relative depth (%)")
     # Tighter tick labels at 9 depths
     for ax in (ax1, ax2):

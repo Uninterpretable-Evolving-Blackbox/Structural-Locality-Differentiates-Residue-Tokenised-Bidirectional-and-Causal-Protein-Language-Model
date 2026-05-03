@@ -221,37 +221,43 @@ def extract_esm2_embeddings(
     device: Optional[str] = None,
     batch_size: Optional[int] = None,
     max_length: int = 1024,
+    model_name: str = "facebook/esm2_t33_650M_UR50D",
 ) -> Dict[int, np.ndarray]:
     """
     Extract ESM-2 embeddings at specified layers.
-    
+
     Layer indexing: layer N = output of transformer block N+1
-    - Layer 0 = first transformer block output
-    - Layer 32 = final transformer block output (33rd block)
-    
-    ESM-2 (650M) has 33 transformer blocks, so valid layers are 0-32.
+      - Layer 0 = first transformer block output
+      - Layer (n_blocks-1) = final transformer block output
+
+    Model scales (for PLM-scale robustness):
+      facebook/esm2_t6_8M_UR50D    (6 blocks,  8M params)
+      facebook/esm2_t12_35M_UR50D  (12 blocks, 35M params)
+      facebook/esm2_t30_150M_UR50D (30 blocks, 150M params)
+      facebook/esm2_t33_650M_UR50D (33 blocks, 650M params)   [paper default]
+      facebook/esm2_t36_3B_UR50D   (36 blocks, 3B params)
     """
     if not layers:
         raise ValueError("Must request at least one ESM-2 layer.")
-    
+
     layers = sorted(set(int(layer) for layer in layers))
     device = _get_device(device)
     config = _get_hw_config(device)
-    
+
     if batch_size is None:
         batch_size = config["esm2_batch"]
-    
-    print(f"Loading ESM-2 to {device} (batch={batch_size}, amp={config['use_amp']})...")
-    print(f"  Layers requested: {layers} (ESM-2 has 33 blocks, indices 0-32)")
-    
+
+    print(f"Loading ESM-2 ({model_name}) to {device} (batch={batch_size}, amp={config['use_amp']})...")
+    print(f"  Layers requested: {layers}")
+
     model_kwargs = {}
     if config["use_flash_attn"]:
         model_kwargs["attn_implementation"] = "flash_attention_2"
     if config["use_amp"]:
         model_kwargs["torch_dtype"] = config["dtype"]
-    
-    tokenizer = AutoTokenizer.from_pretrained("facebook/esm2_t33_650M_UR50D")
-    model = AutoModel.from_pretrained("facebook/esm2_t33_650M_UR50D", **model_kwargs).to(device).eval()
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModel.from_pretrained(model_name, **model_kwargs).to(device).eval()
     
     layer_buffers: Dict[int, List[np.ndarray]] = {layer: [] for layer in layers}
     batches = [protein_sequences[i:i + batch_size] for i in range(0, len(protein_sequences), batch_size)]
@@ -841,6 +847,36 @@ def extract_rita_embeddings(
     del model
     _clear_cache()
     return {layer: np.vstack(chunks) for layer, chunks in buffers.items()}
+
+
+# ============================================================
+#                   SMALL-CHECKPOINT WRAPPERS (scale ablation)
+# ============================================================
+
+def extract_esm2_small_embeddings(
+    protein_sequences: List[str],
+    layers: List[int],
+    device: Optional[str] = None,
+    batch_size: Optional[int] = None,
+    max_length: int = 1024,
+) -> Dict[int, np.ndarray]:
+    """ESM-2 t12 (35M, 12 blocks). Thin wrapper for the scale-ablation arm."""
+    return extract_esm2_embeddings(
+        protein_sequences, layers, device=device, batch_size=batch_size,
+        max_length=max_length, model_name="facebook/esm2_t12_35M_UR50D")
+
+
+def extract_rita_small_embeddings(
+    protein_sequences: List[str],
+    layers: List[int],
+    device: Optional[str] = None,
+    batch_size: Optional[int] = None,
+    max_length: int = 1024,
+) -> Dict[int, np.ndarray]:
+    """RITA-s (smaller residue-level causal). Wrapper around extract_rita_embeddings."""
+    return extract_rita_embeddings(
+        protein_sequences, layers, device=device, batch_size=batch_size,
+        max_length=max_length, model_name="lightonai/RITA_s")
 
 
 # ============================================================

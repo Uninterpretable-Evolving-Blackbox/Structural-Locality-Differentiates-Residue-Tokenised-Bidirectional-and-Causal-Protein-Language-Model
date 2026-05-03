@@ -25,6 +25,8 @@ from extract_embeddings import (
     extract_prott5_decoder_embeddings,
     extract_rita_embeddings,
     extract_progen2_embeddings,
+    extract_esm2_small_embeddings,
+    extract_rita_small_embeddings,
 )
 from train_sae import (
     train_sae,
@@ -145,7 +147,9 @@ MODEL_PLANS = {
     "protgpt2": (
         "ProtGPT2 (~738M)",
         extract_protgpt2_embeddings,
-        [0, 9, 18, 27, 35],
+        # Env override for H1 9-depth densification {4, 13, 22, 31}.
+        [int(x) for x in os.environ["PROTGPT2_LAYERS"].split(",")]
+        if os.environ.get("PROTGPT2_LAYERS") else [0, 9, 18, 27, 35],
     ),
     "prott5_enc": (
         "ProtT5 encoder",
@@ -176,6 +180,21 @@ MODEL_PLANS = {
         "ProGen2 medium (~764M)",
         extract_progen2_embeddings,
         [0, 7, 14, 20, 26],
+    ),
+    # Scale-ablation variants (12 blocks each, matched residue tokenization).
+    # Layer plan [0, 3, 6, 9, 11] → ~0/27/55/82/100% relative depth, the
+    # closest 5-point match to the paper's headline grid.
+    "esm2_small": (
+        "ESM-2 t12 (35M)",
+        extract_esm2_small_embeddings,
+        [int(x) for x in os.environ["ESM2_SMALL_LAYERS"].split(",")]
+        if os.environ.get("ESM2_SMALL_LAYERS") else [0, 3, 6, 9, 11],
+    ),
+    "rita_small": (
+        "RITA-s (85M)",
+        extract_rita_small_embeddings,
+        [int(x) for x in os.environ["RITA_SMALL_LAYERS"].split(",")]
+        if os.environ.get("RITA_SMALL_LAYERS") else [0, 3, 6, 9, 11],
     ),
 }
 

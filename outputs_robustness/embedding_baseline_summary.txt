@@ -1,0 +1,43 @@
+
+Embedding-baseline analyses for the L0 H1 effect
+================================================
+
+Goal: quantify what fraction of the layer-0 cross-model d (paper +1.44)
+is due to raw embedding geometry vs SAE-discovered features.
+
+(A) Per-dim L (Task 2 as specified) — WITH CAVEATS
+    Sparse-feature locality metric applied to dense embedding dims:
+      ESM-2 (1280 dims): mean L = +0.0382, sd = 0.1531
+      RITA  (1536 dims): mean L = +0.0039, sd = 0.0488
+    Cross-model d on dim distributions: +0.3012
+    Paper's SAE-feature d at L0:        +1.4402
+
+    Caveats (DO NOT report this number without these):
+      - "Active = top decile" is arbitrary thresholding of a continuous-valued
+        coordinate axis, not a meaningful "feature firing" event.
+      - Embedding-space basis is arbitrary; the metric is not rotation-invariant.
+      - σ_d is a continuous-distribution spread, not a "fired-vs-not" magnitude.
+    Interpretation if reporting at all: the per-dim L isn't measuring what it
+    measures on SAE features, so the ratio raw/SAE = 0.209 is
+    not directly interpretable as "fraction of L0 effect due to embedding".
+
+(B) Neighbour cosine similarity in embedding space (THE MEANINGFUL TEST)
+    For each protein p: mean cos-sim between contact pairs (Cα<8Å, sep≥12)
+    minus mean cos-sim between sequence-distance-matched non-contact pairs.
+    Per-protein scalars; cross-model d on the two distributions; bootstrap
+    over proteins (B=1000, paired across models).
+
+      ESM-2 mean cos-locality: +0.0009
+      RITA  mean cos-locality: +0.0090
+      Cross-model d (point):   -0.9395
+      95% bootstrap CI:        [-1.0571, -0.8288]
+      frac_pos:                0.000
+      n_proteins (valid):      1499
+
+INTERPRETATION:
+  - If d_cosine ≈ +1.44: L0 H1 effect IS embedding geometry; SAE inherits.
+  - If d_cosine ≈ 0:     L0 H1 effect not visible in raw embeddings; SAE found something.
+  - In between:          partial decomposition of the L0 effect.
+
+  Observed: d_cosine = -0.9395, vs SAE-feature d at L0 = +1.4402.
+  Ratio = -0.652.

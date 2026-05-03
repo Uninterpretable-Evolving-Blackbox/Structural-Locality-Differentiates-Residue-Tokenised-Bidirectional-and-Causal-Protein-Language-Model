@@ -1,0 +1,35 @@
+VAL-ONLY vs FULL-SET COMPARISON
+========================================================================
+
+H1 (ESM-2 vs RITA, struct_delta):
+rel_depth  esm_layer  rita_layer  d_struct_val  d_seq_val
+       0%          0           0       +0.7799    -1.4715
+      13%          4           3       +0.0555    +0.0686
+      25%          8           6       +0.2109    -0.2807
+      38%         12           9       +0.2977    -1.2928
+      50%         16          12       +0.3315    -2.2121
+      63%         20          15       +0.2766    -2.4946
+      75%         24          18       +0.1536    -2.2904
+      88%         28          21       +0.2000    -0.5200
+     100%         32          23       +0.4297    +0.9694
+
+H2 (ProtT5 enc vs dec, struct_delta and seq_delta):
+ layer rel_depth  d_struct_val  d_seq_val
+     0      0.0%       -0.1807    -0.5027
+     3     13.0%       -0.2780    -2.4376
+     6     26.1%       -0.2422    -1.5012
+     9     39.1%       -0.0672    -1.3030
+    12     52.2%       +0.2942    +0.2289
+    15     65.2%       +0.3057    +1.7792
+    18     78.3%       +0.3517    +1.2801
+    21     91.3%       +0.4901    -0.4911
+    23    100.0%       +0.2970    +1.8963
+
+BPE (ESM-2 vs ProtGPT2 naive seq_delta):
+rel_depth  esm_layer  pg_layer  d_seq_naive_val  d_seq_intertok_val                                                                       note
+       0%          0         0          +2.9378                 NaN inter-token val not computed — needs experiment_bpe_correction val variant
+      25%          8         9          +2.4071                 NaN inter-token val not computed — needs experiment_bpe_correction val variant
+      50%         16        18          +1.6723                 NaN inter-token val not computed — needs experiment_bpe_correction val variant
+      75%         24        27          +2.2356                 NaN inter-token val not computed — needs experiment_bpe_correction val variant
+     100%         32        35          +5.5980                 NaN inter-token val not computed — needs experiment_bpe_correction val variant
+
