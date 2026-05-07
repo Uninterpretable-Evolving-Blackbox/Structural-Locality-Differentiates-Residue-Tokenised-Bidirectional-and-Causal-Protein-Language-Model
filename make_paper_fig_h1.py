@@ -24,7 +24,7 @@ plt.rcParams["pdf.fonttype"] = 42     # TrueType in PDF (avoids Type-3)
 plt.rcParams["ps.fonttype"]  = 42     # TrueType in PS/EPS (avoids Type-3)
 
 ROOT = Path(__file__).resolve().parent
-OUT_DIR = ROOT / "paper_draft" / "paper_submission-3" / "figures"
+OUT_DIR = ROOT / "paper_draft" / "paper_submission-4" / "figures"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # x-axis labels are paper-canonical relative-depth %s (RITA-side denominator:
@@ -112,6 +112,12 @@ def main():
     paired_violin(ax1, depth_labels, esm_struct, rita_struct, r"$L_\mathrm{struct}$")
     paired_violin(ax2, depth_labels, esm_seq,    rita_seq,    r"$L_\mathrm{seq}$")
     ax2.set_xlabel("Relative depth (%)")
+
+    # Panel labels A / B in axes-relative coords, just outside upper-left corner
+    ax1.text(-0.14, 1.02, "A", transform=ax1.transAxes,
+             fontsize=12, fontweight="bold", va="bottom")
+    ax2.text(-0.14, 1.02, "B", transform=ax2.transAxes,
+             fontsize=12, fontweight="bold", va="bottom")
     # Tighter tick labels at 9 depths
     for ax in (ax1, ax2):
         ax.tick_params(axis="x", which="major", pad=1)

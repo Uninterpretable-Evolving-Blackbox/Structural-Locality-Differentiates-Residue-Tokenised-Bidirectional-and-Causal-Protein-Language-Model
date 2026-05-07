@@ -1,0 +1,136 @@
+model_a,layer_a,model_b,layer_b,rel_depth_a,rel_depth_b,contact_cutoff,mean_a,mean_b,cohens_d,MW_p,significant,hypothesis,source,pair,window,variant
+esm2,0,rita,0,0.0,0.0,6.0,0.0911863967776298,0.0037939890753477,1.203229636121257,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,0,rita,0,0.0,0.0,8.0,0.1428778767585754,0.0024771757889539,1.4401910244712322,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,0,rita,0,0.0,0.0,10.0,0.1332565993070602,-0.0004579582018777,1.485810716166296,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,4,rita,3,0.125,0.1304347826086956,6.0,0.0061861374415457,0.004303062800318,0.0355330802511208,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,4,rita,3,0.125,0.1304347826086956,8.0,0.0046883947215974,0.0020492556504905,0.0458552117794154,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,4,rita,3,0.125,0.1304347826086956,10.0,0.0002189167134929,-0.0021673350129276,0.0521819072716771,1.0202466277120444e-24,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,8,rita,6,0.25,0.2608695652173913,6.0,0.0185159295797348,0.0051192180253565,0.3045798018017683,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,8,rita,6,0.25,0.2608695652173913,8.0,0.0194916017353534,0.0025964616797864,0.3424540426445075,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,8,rita,6,0.25,0.2608695652173913,10.0,0.0132565004751086,-0.0015191277489066,0.3055414057420352,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,12,rita,9,0.375,0.391304347826087,6.0,0.0302414782345294,0.0060579068958759,0.3723373181996194,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,12,rita,9,0.375,0.391304347826087,8.0,0.0397962406277656,0.0034948468673974,0.4962261564369853,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,12,rita,9,0.375,0.391304347826087,10.0,0.0348177552223205,-0.0011127444449812,0.4844758028971139,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,16,rita,12,0.5,0.5217391304347826,6.0,0.0361571572721004,0.0054271914996206,0.4315426116638644,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,16,rita,12,0.5,0.5217391304347826,8.0,0.0527166612446308,0.0028635438065975,0.6158817847275736,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,16,rita,12,0.5,0.5217391304347826,10.0,0.0509030111134052,-0.0019813755061477,0.6218656803871249,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,20,rita,15,0.625,0.6521739130434783,6.0,0.0325916856527328,0.0063112596981227,0.3570183107344583,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,20,rita,15,0.625,0.6521739130434783,8.0,0.045763973146677,0.0042841881513595,0.5012676121877792,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,20,rita,15,0.625,0.6521739130434783,10.0,0.0423371419310569,-7.086108234943822e-05,0.4908504401727266,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,24,rita,18,0.75,0.782608695652174,6.0,0.0248033069074153,0.0053980587981641,0.3023964613185838,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,24,rita,18,0.75,0.782608695652174,8.0,0.0257072541862726,0.0033960368018597,0.3186335001482444,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,24,rita,18,0.75,0.782608695652174,10.0,0.0162294097244739,-0.0010900996858254,0.2436116067732822,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,28,rita,21,0.875,0.9130434782608696,6.0,0.0233047269284725,0.0046074609272181,0.3645739575301734,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,28,rita,21,0.875,0.9130434782608696,8.0,0.0219513326883316,0.0029671099036931,0.3580895095295746,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,28,rita,21,0.875,0.9130434782608696,10.0,0.0142855616286396,-0.0008560080896131,0.3001158266507301,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,32,rita,23,1.0,1.0,6.0,0.0286308266222476,0.0032663757447153,0.6212051162589621,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,32,rita,23,1.0,1.0,8.0,0.0335448458790779,0.0010466919047757,0.7302422376992785,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+esm2,32,rita,23,1.0,1.0,10.0,0.0285168029367923,-0.0031094632577151,0.7739519050430687,0.0,True,H1 (ESM-2 struct > RITA struct),H1_cutoff,,,
+prott5_enc,0,prott5_dec,0,0.0,0.0,6.0,0.0071290815249085,0.016491062939167,-0.254750092353617,1.0,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,0,prott5_dec,0,0.0,0.0,8.0,0.0063173882663249,0.0171288009732961,-0.2958081367495686,1.0,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,0,prott5_dec,0,0.0,0.0,10.0,0.0020925975404679,0.0162874683737754,-0.5036187569748175,1.0,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,3,prott5_dec,3,0.1304347826086956,0.1304347826086956,6.0,0.0060951020568609,0.0189450271427631,-0.3370578558397707,1.0,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,3,prott5_dec,3,0.1304347826086956,0.1304347826086956,8.0,0.0048761148937046,0.0204818658530712,-0.4015690076360274,1.0,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,3,prott5_dec,3,0.1304347826086956,0.1304347826086956,10.0,0.001012489432469,0.0173151344060897,-0.5054696102856076,1.0,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,6,prott5_dec,6,0.2608695652173913,0.2608695652173913,6.0,0.0039505893364548,0.0152448834851384,-0.2877329875381087,1.0,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,6,prott5_dec,6,0.2608695652173913,0.2608695652173913,8.0,-0.0004472020664252,0.0145492497831583,-0.3813110897367717,1.0,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,6,prott5_dec,6,0.2608695652173913,0.2608695652173913,10.0,-0.0072552561759948,0.0099811237305402,-0.5146077653196055,1.0,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,9,prott5_dec,9,0.391304347826087,0.391304347826087,6.0,0.0081295315176248,0.0128806512802839,-0.1131315262228632,0.999999463558197,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,9,prott5_dec,9,0.391304347826087,0.391304347826087,8.0,0.0056817904114723,0.0112067069858312,-0.1307857656228035,1.0,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,9,prott5_dec,9,0.391304347826087,0.391304347826087,10.0,-0.0015573967248201,0.005327396094799,-0.1887893345450683,1.0,False,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,12,prott5_dec,12,0.5217391304347826,0.5217391304347826,6.0,0.0257590934634208,0.0110746147111058,0.2857870219306237,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,12,prott5_dec,12,0.5217391304347826,0.5217391304347826,8.0,0.02972805313766,0.0083525106310844,0.40243233389505,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,12,prott5_dec,12,0.5217391304347826,0.5217391304347826,10.0,0.0220136363059282,0.0020016063936054,0.4128455838458446,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,15,prott5_dec,15,0.6521739130434783,0.6521739130434783,6.0,0.0295522473752498,0.0102803828194737,0.3166679181236477,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,15,prott5_dec,15,0.6521739130434783,0.6521739130434783,8.0,0.033790647983551,0.0076102130115032,0.4264703335506569,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,15,prott5_dec,15,0.6521739130434783,0.6521739130434783,10.0,0.0249433424323797,0.0013449543621391,0.4242557866917566,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,18,prott5_dec,18,0.782608695652174,0.782608695652174,6.0,0.035323292016983,0.0112522765994071,0.4013796398809742,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,18,prott5_dec,18,0.782608695652174,0.782608695652174,8.0,0.0384501703083515,0.0088942274451255,0.5006654686342471,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,18,prott5_dec,18,0.782608695652174,0.782608695652174,10.0,0.0289972573518753,0.0030522986780852,0.5084510202801709,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,21,prott5_dec,21,0.9130434782608696,0.9130434782608696,6.0,0.0436975546181201,0.0153170907869935,0.5161968600389867,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,21,prott5_dec,21,0.9130434782608696,0.9130434782608696,8.0,0.0524360984563827,0.0155929494649171,0.687780006854716,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,21,prott5_dec,21,0.9130434782608696,0.9130434782608696,10.0,0.0454050526022911,0.0109180379658937,0.8048059539710535,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,23,prott5_dec,23,1.0,1.0,6.0,0.0320477746427059,0.0141643863171339,0.4454874626321451,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,23,prott5_dec,23,1.0,1.0,8.0,0.0364006012678146,0.0163274928927421,0.5035986134294724,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+prott5_enc,23,prott5_dec,23,1.0,1.0,10.0,0.0301366075873374,0.013637937605381,0.5664089658049806,0.0,True,H3 (ProtT5 enc struct > dec struct),H3_cutoff,,,
+rita,0,esm2,0,,,,,,-1.3699730408979576,1.0,False,H2 (RITA seq > ESM-2),H2_window,1.0,1.0,raw
+protgpt2,0,esm2,0,,,,,,3.4626599110970595,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,1.0,1.0,raw
+protgpt2,0,esm2,0,,,,,,-2.3739866841832584,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,1.0,1.0,inter
+rita,3,esm2,4,,,,,,0.2602139073934675,1.0,False,H2 (RITA seq > ESM-2),H2_window,2.0,1.0,raw
+protgpt2,4,esm2,4,,,,,,2.5713465096299113,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,2.0,1.0,raw
+protgpt2,4,esm2,4,,,,,,-2.9657884823147955,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,2.0,1.0,inter
+rita,6,esm2,8,,,,,,-0.1594184393542341,1.0,False,H2 (RITA seq > ESM-2),H2_window,3.0,1.0,raw
+protgpt2,9,esm2,8,,,,,,2.668802301334208,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,3.0,1.0,raw
+protgpt2,9,esm2,8,,,,,,-4.464215914066509,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,3.0,1.0,inter
+rita,9,esm2,12,,,,,,-0.907571438956448,1.0,False,H2 (RITA seq > ESM-2),H2_window,4.0,1.0,raw
+protgpt2,13,esm2,12,,,,,,1.9642393848483424,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,4.0,1.0,raw
+protgpt2,13,esm2,12,,,,,,-6.0077902543083495,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,4.0,1.0,inter
+rita,12,esm2,16,,,,,,-1.836128147987279,1.0,False,H2 (RITA seq > ESM-2),H2_window,5.0,1.0,raw
+protgpt2,18,esm2,16,,,,,,1.945374710139673,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,5.0,1.0,raw
+protgpt2,18,esm2,16,,,,,,-7.656100285526986,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,5.0,1.0,inter
+rita,15,esm2,20,,,,,,-2.1375961646629436,1.0,False,H2 (RITA seq > ESM-2),H2_window,6.0,1.0,raw
+protgpt2,22,esm2,20,,,,,,1.9573188412980944,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,6.0,1.0,raw
+protgpt2,22,esm2,20,,,,,,-5.759144990059978,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,6.0,1.0,inter
+rita,18,esm2,24,,,,,,-2.1669927227288315,1.0,False,H2 (RITA seq > ESM-2),H2_window,7.0,1.0,raw
+protgpt2,27,esm2,24,,,,,,2.613492275430421,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,7.0,1.0,raw
+protgpt2,27,esm2,24,,,,,,-5.551188129764383,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,7.0,1.0,inter
+rita,21,esm2,28,,,,,,-0.5514491853670116,1.0,False,H2 (RITA seq > ESM-2),H2_window,8.0,1.0,raw
+protgpt2,31,esm2,28,,,,,,4.2447134149598735,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,8.0,1.0,raw
+protgpt2,31,esm2,28,,,,,,-4.819224974403979,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,8.0,1.0,inter
+rita,23,esm2,32,,,,,,0.9645158654737316,0.0,True,H2 (RITA seq > ESM-2),H2_window,9.0,1.0,raw
+protgpt2,35,esm2,32,,,,,,6.495055477693005,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,9.0,1.0,raw
+protgpt2,35,esm2,32,,,,,,-3.989215747707856,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,9.0,1.0,inter
+rita,0,esm2,0,,,,,,-1.6435881936222516,1.0,False,H2 (RITA seq > ESM-2),H2_window,1.0,2.0,raw
+protgpt2,0,esm2,0,,,,,,3.2424097240833696,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,1.0,2.0,raw
+protgpt2,0,esm2,0,,,,,,-2.276056060582712,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,1.0,2.0,inter
+rita,3,esm2,4,,,,,,0.1770532269931136,1.0,False,H2 (RITA seq > ESM-2),H2_window,2.0,2.0,raw
+protgpt2,4,esm2,4,,,,,,2.511444458964237,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,2.0,2.0,raw
+protgpt2,4,esm2,4,,,,,,-1.9629971630974627,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,2.0,2.0,inter
+rita,6,esm2,8,,,,,,-0.2618640955571161,1.0,False,H2 (RITA seq > ESM-2),H2_window,3.0,2.0,raw
+protgpt2,9,esm2,8,,,,,,2.5825678078000607,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,3.0,2.0,raw
+protgpt2,9,esm2,8,,,,,,-3.006229980260471,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,3.0,2.0,inter
+rita,9,esm2,12,,,,,,-1.098792336339905,1.0,False,H2 (RITA seq > ESM-2),H2_window,4.0,2.0,raw
+protgpt2,13,esm2,12,,,,,,1.820800706314372,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,4.0,2.0,raw
+protgpt2,13,esm2,12,,,,,,-4.908116355940719,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,4.0,2.0,inter
+rita,12,esm2,16,,,,,,-2.029196429987597,1.0,False,H2 (RITA seq > ESM-2),H2_window,5.0,2.0,raw
+protgpt2,18,esm2,16,,,,,,1.688017877075519,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,5.0,2.0,raw
+protgpt2,18,esm2,16,,,,,,-6.095226983660401,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,5.0,2.0,inter
+rita,15,esm2,20,,,,,,-2.3056078910228655,1.0,False,H2 (RITA seq > ESM-2),H2_window,6.0,2.0,raw
+protgpt2,22,esm2,20,,,,,,1.7513786095510062,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,6.0,2.0,raw
+protgpt2,22,esm2,20,,,,,,-3.444018239216483,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,6.0,2.0,inter
+rita,18,esm2,24,,,,,,-2.188246014936622,1.0,False,H2 (RITA seq > ESM-2),H2_window,7.0,2.0,raw
+protgpt2,27,esm2,24,,,,,,2.3778338437361803,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,7.0,2.0,raw
+protgpt2,27,esm2,24,,,,,,-2.1212297871195966,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,7.0,2.0,inter
+rita,21,esm2,28,,,,,,-0.4631387955311273,1.0,False,H2 (RITA seq > ESM-2),H2_window,8.0,2.0,raw
+protgpt2,31,esm2,28,,,,,,4.14868230905779,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,8.0,2.0,raw
+protgpt2,31,esm2,28,,,,,,-1.5990261524389695,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,8.0,2.0,inter
+rita,23,esm2,32,,,,,,0.9831368261191104,0.0,True,H2 (RITA seq > ESM-2),H2_window,9.0,2.0,raw
+protgpt2,35,esm2,32,,,,,,5.91574025104584,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,9.0,2.0,raw
+protgpt2,35,esm2,32,,,,,,-1.4715767306713874,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,9.0,2.0,inter
+rita,0,esm2,0,,,,,,-1.92325578623699,1.0,False,H2 (RITA seq > ESM-2),H2_window,1.0,4.0,raw
+protgpt2,0,esm2,0,,,,,,2.637710116973216,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,1.0,4.0,raw
+protgpt2,0,esm2,0,,,,,,-2.3580376658197393,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,1.0,4.0,inter
+rita,3,esm2,4,,,,,,0.0285606079444469,1.0,False,H2 (RITA seq > ESM-2),H2_window,2.0,4.0,raw
+protgpt2,4,esm2,4,,,,,,2.4355306117805036,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,2.0,4.0,raw
+protgpt2,4,esm2,4,,,,,,-1.8317309465857856,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,2.0,4.0,inter
+rita,6,esm2,8,,,,,,-0.6097938539008988,1.0,False,H2 (RITA seq > ESM-2),H2_window,3.0,4.0,raw
+protgpt2,9,esm2,8,,,,,,2.3726598709056614,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,3.0,4.0,raw
+protgpt2,9,esm2,8,,,,,,-2.904590655068694,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,3.0,4.0,inter
+rita,9,esm2,12,,,,,,-1.6917873555030285,1.0,False,H2 (RITA seq > ESM-2),H2_window,4.0,4.0,raw
+protgpt2,13,esm2,12,,,,,,1.4500062411747223,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,4.0,4.0,raw
+protgpt2,13,esm2,12,,,,,,-4.86722015832771,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,4.0,4.0,inter
+rita,12,esm2,16,,,,,,-2.7908691595141915,1.0,False,H2 (RITA seq > ESM-2),H2_window,5.0,4.0,raw
+protgpt2,18,esm2,16,,,,,,0.9629449014665494,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,5.0,4.0,raw
+protgpt2,18,esm2,16,,,,,,-6.152659931937313,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,5.0,4.0,inter
+rita,15,esm2,20,,,,,,-2.9999322221520925,1.0,False,H2 (RITA seq > ESM-2),H2_window,6.0,4.0,raw
+protgpt2,22,esm2,20,,,,,,1.173552945099569,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,6.0,4.0,raw
+protgpt2,22,esm2,20,,,,,,-3.558376866029719,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,6.0,4.0,inter
+rita,18,esm2,24,,,,,,-2.663677845016476,1.0,False,H2 (RITA seq > ESM-2),H2_window,7.0,4.0,raw
+protgpt2,27,esm2,24,,,,,,1.7025262210784855,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,7.0,4.0,raw
+protgpt2,27,esm2,24,,,,,,-1.948641491709019,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,7.0,4.0,inter
+rita,21,esm2,28,,,,,,-0.5438424502120155,1.0,False,H2 (RITA seq > ESM-2),H2_window,8.0,4.0,raw
+protgpt2,31,esm2,28,,,,,,3.731278960966832,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,8.0,4.0,raw
+protgpt2,31,esm2,28,,,,,,-1.1522496377501708,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,8.0,4.0,inter
+rita,23,esm2,32,,,,,,1.1617700890940772,0.0,True,H2 (RITA seq > ESM-2),H2_window,9.0,4.0,raw
+protgpt2,35,esm2,32,,,,,,5.2631787356666715,0.0,True,H2 raw (ProtGPT2 seq > ESM-2),H2_window,9.0,4.0,raw
+protgpt2,35,esm2,32,,,,,,-1.1610095668103209,1.0,False,H2' (ProtGPT2 inter-token seq > ESM-2),H2_window,9.0,4.0,inter

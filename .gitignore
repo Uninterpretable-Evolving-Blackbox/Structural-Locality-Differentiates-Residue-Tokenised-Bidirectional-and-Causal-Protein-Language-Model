@@ -15,6 +15,11 @@ results_metric_sweep*/
 # Robustness — large raw L0 hidden states (regeneratable from PLM)
 outputs_robustness/raw_l0_*.npy
 outputs_robustness/__pycache__/
+outputs_robustness/*_progress.txt
+outputs_robustness/*_run.log
+
+# Claude Code workspace
+.claude/
 
 # Sweep outputs — keep aggregates + summary, drop bulky raw concat & per-cell tables
 results_cutoff_sweep/cutoff_raw.csv

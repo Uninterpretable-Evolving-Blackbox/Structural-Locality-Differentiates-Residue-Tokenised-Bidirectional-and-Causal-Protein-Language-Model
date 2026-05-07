@@ -392,6 +392,35 @@ results_clamping_esm2_l16/
 | `experiment_activation_clamping.py` | Causal intervention: ablate/amplify top SAE features during ESM-2 forward pass |
 | `subsample_dataset.py` | Deterministic fold-stratified subsampling from full SCOPe to N proteins |
 
+### Paper revision (May 2026): bootstrap CIs and paper-revision tables
+Addresses the eight reviewer items raised pre-submission. All point estimates
+verified against the paper's published Table 1 / `bootstrap_h1_*` values
+(exact match where overlap exists). All bootstrap CIs are normal-approximation
+`d_point ± 1.96·boot_sd`, B=1000, protein-level cluster bootstrap.
+
+| File | Description |
+|---|---|
+| `outputs_robustness/compute_cis_v2.py` | Paired ESM-2 vs RITA + ProtT5 enc-vs-dec bootstrap; 5 active-mask variants (top-decile struct, top-decile seq, struct@0.5/1/2 ×s) per cell, partial-CSV checkpointing each depth. Threaded via OMP/MKL. |
+| `outputs_robustness/compute_cis_v3_optimized.py` | Val-only sweep CIs at Cα cutoffs {6, 10} Å and sequence windows ±{1, 4}. Two key optimisations: batched bootstrap (one big `W @ contribs` matmul instead of 1000 small ones, ≈100× speedup; built-in correctness test asserts max-abs error <1e-15 vs explicit loop), and shared sigma/percentile/active-mask across the four adjacency variants for a given (model, layer). |
+| `make_within_model_trajectory_plot.py` | Renders Figure 2 (Appendix G): mean L_struct vs depth for all four PLMs with bootstrap CI bands, from `v2_cis_trajectory.csv`. ICML Type-42 fonts. |
+| `outputs_robustness/PAPER_REVISION_SUMMARY.md` | Master document — full tables for all 8 items with sources and per-cell numbers. Paper-pasteable. |
+
+CSVs produced (small, paper-quotable):
+
+| File | Reviewer item | Rows |
+|---|---|---|
+| `bootstrap_h1_corrected_cis.csv` | 1: H1 bootstrap CI fix (Table 15) | 18 |
+| `v2_cis_pair_pt5.csv` | 2: ProtT5 enc-vs-dec H2 CIs | 36 |
+| `v3opt_cis_val_sweeps.csv` | 3: val cutoff + window CIs | 72 |
+| `v2_cis_pair_esm_rita.csv` | 4 + 5: threshold sensitivity + L_seq with CIs | 90 |
+| `Lseq_esm_rita.csv`, `prott5_enc_vs_dec.csv` | 5 + 2 (point estimates only) | 9 + 9 |
+| `sae_val_ev_table.csv` | 6: RITA-l SAE val EV | 9 |
+| `cross_seed_sd_table7.csv` | 7: cross-seed SD per depth | 10 |
+| `sweep_significance_markers.csv` | 8: per-cell ✓/✗ for cutoff and window sweeps | 135 |
+| `interp_appendixC_table.csv` | 9: per-model %Interp at q<0.05 and q<10⁻⁶ | 10 |
+| `v2_cis_trajectory.csv` | within-model L_struct trajectory CIs (4 models × 9 depths) | 36 |
+| `_ITEM2/_ITEM3/_ITEM4_*.csv` | sorted-clean per-item paste-in views | as above |
+
 ### Post-submission robustness scripts
 | File | Description |
 |---|---|
