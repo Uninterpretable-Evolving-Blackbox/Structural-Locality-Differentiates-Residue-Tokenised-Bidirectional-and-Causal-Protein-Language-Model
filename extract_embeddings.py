@@ -64,7 +64,6 @@ def _get_hw_config(device: str) -> dict:
         "prott5_batch": 1,
         "protgpt2_batch": 4,
         "rita_batch": 4,
-        "progen2_batch": 4,
         "use_flash_attn": False,
     }
     
@@ -88,25 +87,21 @@ def _get_hw_config(device: str) -> dict:
             config["prott5_batch"] = 8
             config["protgpt2_batch"] = 32
             config["rita_batch"] = 24
-            config["progen2_batch"] = 24
         elif vram_gb > 35:  # A100 40/80GB
             config["esm2_batch"] = 32
             config["prott5_batch"] = 4
             config["protgpt2_batch"] = 16
             config["rita_batch"] = 12
-            config["progen2_batch"] = 12
         elif vram_gb > 20:  # RTX 3090/4090
             config["esm2_batch"] = 16
             config["prott5_batch"] = 2
             config["protgpt2_batch"] = 8
             config["rita_batch"] = 6
-            config["progen2_batch"] = 6
         elif vram_gb > 10:
             config["esm2_batch"] = 8
             config["prott5_batch"] = 1
             config["protgpt2_batch"] = 4
             config["rita_batch"] = 3
-            config["progen2_batch"] = 3
 
         # TF32 for tensor cores
         torch.backends.cuda.matmul.allow_tf32 = True
@@ -134,11 +129,10 @@ def _get_hw_config(device: str) -> dict:
         config["prott5_batch"] = int(os.environ.get("PROTT5_BATCH", 4))
         config["protgpt2_batch"] = int(os.environ.get("PROTGPT2_BATCH", 16))
         config["rita_batch"] = int(os.environ.get("RITA_BATCH", 12))
-        config["progen2_batch"] = int(os.environ.get("PROGEN2_BATCH", 12))
         config["use_flash_attn"] = False
         print(f"   Batches: esm2={config['esm2_batch']} "
               f"prott5={config['prott5_batch']} protgpt2={config['protgpt2_batch']} "
-              f"rita={config['rita_batch']} progen2={config['progen2_batch']}")
+              f"rita={config['rita_batch']}")
 
     _HW_CONFIG = config
     return config
@@ -500,190 +494,6 @@ def extract_protgpt2_embeddings(
             
             del out, hidden_states
     
-    del model
-    _clear_cache()
-    return {layer: np.vstack(chunks) for layer, chunks in buffers.items()}
-
-
-# ============================================================
-#                   PROGEN2 EXTRACTOR
-# ============================================================
-
-def _patch_progen2_meta_tensors(model, device: str):
-    """Materialise meta-device tensors in ProGen2's custom modelling code.
-
-    ProGen2's ProGenAttention.__init__ creates three tensors that are NOT
-    regular parameters or persistent buffers:
-      • ``scale_attn``  — a Python attribute holding sqrt(head_dim)
-      • ``masked_bias`` — ``register_buffer(..., persistent=False)``
-      • ``bias``        — ``register_buffer(..., persistent=False)``
-    Under transformers 5.x's meta-device init context, these end up on meta
-    and are not moved by ``model.to(device)``.  We rebuild them here with
-    their original init values.
-    """
-    fixed = 0
-    for sub in model.modules():
-        # scale_attn is a Python attribute (not a registered parameter/buffer)
-        if hasattr(sub, "scale_attn") and isinstance(sub.scale_attn, torch.Tensor):
-            if sub.scale_attn.device.type == "meta":
-                sub.scale_attn = torch.sqrt(torch.tensor(
-                    sub.head_dim, dtype=torch.float32)).to(torch.get_default_dtype())
-                fixed += 1
-        if hasattr(sub, "masked_bias") and isinstance(sub.masked_bias, torch.Tensor):
-            if sub.masked_bias.device.type == "meta":
-                sub.register_buffer("masked_bias",
-                                    torch.tensor(-1e9),
-                                    persistent=False)
-                fixed += 1
-        # Causal mask buffer (name 'bias' is unfortunate — matches Python
-        # nn.Module.bias attribute on nn.Linear, so be careful).  ProGen2
-        # puts this directly on the attention block, not on a Linear.
-        if (hasattr(sub, "bias") and isinstance(sub.bias, torch.Tensor)
-                and sub.bias.dtype == torch.bool and sub.bias.dim() == 4):
-            if sub.bias.device.type == "meta":
-                mp = sub.bias.shape[-1]
-                sub.register_buffer("bias",
-                    torch.tril(torch.ones((mp, mp), dtype=torch.bool))
-                         .view(1, 1, mp, mp),
-                    persistent=False)
-                fixed += 1
-    return fixed
-
-
-def extract_progen2_embeddings(
-    sequences: List[str],
-    layers: List[int],
-    device: Optional[str] = None,
-    batch_size: Optional[int] = None,
-    max_length: int = 1024,
-    model_name: str = "hugohrban/progen2-medium",
-) -> Dict[int, np.ndarray]:
-    """
-    Extract ProGen2 embeddings.  Residue-level autoregressive PLM (Nijkamp
-    et al. 2022): 1 token per amino acid, no BPE merging.
-
-    Matching ESM-2 at residue granularity means the sequential-locality
-    metric is directly comparable without the inter-token correction that
-    ProtGPT2's BPE requires.
-
-    ProGen2-medium: 764M params, 27 transformer blocks.  Matched relative
-    depths for cross-model comparison: [0, 7, 14, 20, 26].
-
-    Implementation notes — three transformers-5.x compatibility patches are
-    applied, the RITA-learned pattern:
-      (1) ``PreTrainedModel.all_tied_weights_keys = {}`` so the load path
-          doesn't crash looking for an attribute the custom class lacks.
-      (2) ``PreTrainedModel.get_head_mask`` stub — removed from
-          transformers 5.x but ProGen2's forward still calls it.
-      (3) Rebuild per-attention-block meta tensors (``scale_attn``,
-          ``masked_bias``, ``bias``) that transformers-5.x's meta-init
-          leaves stranded.  See ``_patch_progen2_meta_tensors``.
-
-    Unlike RITA, ProGen2 honours ``output_hidden_states=True`` natively
-    (returns the full (embedding + N_blocks) tuple), so no forward-hook
-    scaffolding is needed.
-    """
-    if not layers:
-        raise ValueError("Must request at least one ProGen2 layer.")
-
-    layers = sorted(set(int(layer) for layer in layers))
-    device = _get_device(device)
-    config = _get_hw_config(device)
-
-    if batch_size is None:
-        batch_size = config.get("progen2_batch", config.get("rita_batch", 12))
-
-    # Patch 1: tied-weights API
-    from transformers.modeling_utils import PreTrainedModel
-    if not hasattr(PreTrainedModel, "all_tied_weights_keys"):
-        PreTrainedModel.all_tied_weights_keys = {}
-    # Patch 2: get_head_mask stub
-    if not hasattr(PreTrainedModel, "get_head_mask"):
-        def _ghm(self, hm, n_layers, is_chunked=False):
-            return [None] * n_layers if hm is None else hm
-        PreTrainedModel.get_head_mask = _ghm
-
-    print(f"Loading ProGen2 ({model_name}) to {device} (batch={batch_size})...")
-    print(f"  Layers requested: {layers}")
-
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-
-    # Padding token: ProGen2's tokenizer has <|pad|> at id 0 but the config
-    # leaves pad_token=None.  Set it explicitly so padding=True works.
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = ("<|pad|>" if "<|pad|>" in tokenizer.get_vocab()
-                               else tokenizer.convert_ids_to_tokens(0))
-
-    # Verify 1:1 residue↔token.  ProGen2 has residue-level tokens and does
-    # NOT auto-prepend BOS/EOS for bare amino-acid strings, so add_special
-    # tokens True vs False gives identical length.
-    probe = sequences[0] if sequences else "MKVLWAL"
-    probe_ids = tokenizer(probe, add_special_tokens=False)["input_ids"]
-    if len(probe_ids) != len(probe):
-        print(f"  ⚠️  ProGen2 tokenizer produced {len(probe_ids)} tokens "
-              f"for a {len(probe)}-residue probe — not 1:1.")
-    else:
-        print(f"  ✓  Tokenizer 1:1 residue↔token verified")
-
-    # Load in fp32 — RITA's fp16 numerical instability doesn't apply to
-    # ProGen2 (verified empirically), but fp32 is a minor cost (~3 GB)
-    # and removes one potential failure mode.  Keep fp32.
-    model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True)
-
-    # Patch 3: materialise attention-block meta tensors BEFORE moving
-    # to device (rebuilt on CPU, will follow the .to() call below).
-    n_patched = _patch_progen2_meta_tensors(model, device)
-    print(f"  meta-tensor patch: fixed {n_patched} attention-block tensors")
-
-    model = model.to(device).eval()
-
-    # scale_attn is a Python attribute, NOT a registered buffer — .to()
-    # did not move it.  Explicit pass after device-move.
-    for sub in model.modules():
-        if hasattr(sub, "scale_attn") and isinstance(sub.scale_attn, torch.Tensor):
-            if sub.scale_attn.device != torch.device(device):
-                sub.scale_attn = sub.scale_attn.to(device)
-
-    # Report block count
-    n_blocks = getattr(model.config, "num_hidden_layers",
-                       getattr(model.config, "n_layer", None))
-    print(f"  Model has {n_blocks} transformer blocks")
-    for L in layers:
-        if L >= n_blocks:
-            raise ValueError(
-                f"ProGen2: requested layer {L}, only {n_blocks} blocks available.")
-
-    buffers: Dict[int, List[np.ndarray]] = {layer: [] for layer in layers}
-    batches = [sequences[i:i + batch_size]
-               for i in range(0, len(sequences), batch_size)]
-
-    print(f"Extracting {len(sequences)} sequences in {len(batches)} batches...")
-
-    with torch.no_grad():
-        for batch_seqs in tqdm(batches, desc="ProGen2"):
-            inputs = tokenizer(
-                batch_seqs, return_tensors="pt", padding=True,
-                truncation=True, max_length=max_length,
-                add_special_tokens=False,  # 1:1 with residues
-            )
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-
-            out = model(**inputs, output_hidden_states=True, return_dict=True)
-            hidden_states = out.hidden_states  # (embedding, block1, ..., blockN)
-
-            for i in range(len(batch_seqs)):
-                # attention_mask IS the residue mask since no specials added
-                keep = inputs["attention_mask"][i].bool()
-                for layer in layers:
-                    idx = layer + 1  # skip embedding layer
-                    if idx >= len(hidden_states):
-                        raise ValueError(
-                            f"ProGen2: requested layer {layer}, only "
-                            f"{len(hidden_states)-1} blocks available.")
-                    buffers[layer].append(_to_numpy(hidden_states[idx][i, keep, :]))
-
-            del out, hidden_states
-
     del model
     _clear_cache()
     return {layer: np.vstack(chunks) for layer, chunks in buffers.items()}

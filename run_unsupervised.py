@@ -24,7 +24,6 @@ from extract_embeddings import (
     extract_prott5_encoder_embeddings,
     extract_prott5_decoder_embeddings,
     extract_rita_embeddings,
-    extract_progen2_embeddings,
     extract_esm2_small_embeddings,
     extract_rita_small_embeddings,
 )
@@ -172,14 +171,6 @@ MODEL_PLANS = {
         # Env override for H5 densification {3, 9, 15, 21}.
         [int(x) for x in os.environ["RITA_LAYERS"].split(",")]
         if os.environ.get("RITA_LAYERS") else [0, 6, 12, 18, 23],
-    ),
-    # ProGen2-medium: 27 blocks, 764M — residue-level autoregressive,
-    # widely cited (Nijkamp 2022). Size-matched to ProtGPT2 (738M) and
-    # close to ESM-2 (650M). Preferred residue-level causal comparator.
-    "progen2": (
-        "ProGen2 medium (~764M)",
-        extract_progen2_embeddings,
-        [0, 7, 14, 20, 26],
     ),
     # Scale-ablation variants (12 blocks each, matched residue tokenization).
     # Layer plan [0, 3, 6, 9, 11] → ~0/27/55/82/100% relative depth, the

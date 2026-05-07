@@ -51,7 +51,7 @@ mark_start "Resample SCOPe subsample with --seed 43"
 $PY subsample_dataset.py --seed 43 --min-coverage 0.80
 mark_end   "Resample subsample"
 
-# Run only the 5 paper models (skip progen2 which was paper-dropped).
+# Run all 5 paper models.
 for M in esm2 protgpt2 prott5_enc prott5_dec rita; do
     mark_start "dseed=43 pipeline — MODEL=$M"
     MODEL=$M RUN_SUFFIX=_dseed43 ./run_all.sh $M

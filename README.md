@@ -19,7 +19,6 @@ TopK Sparse Autoencoders (Gao et al., 2024) trained on four protein language mod
 | Data-split robustness (split seed=99) | H1+H2′ direction preserved 5/5 | Per-depth d delta ≤ 0.07 |
 | Metric-choice robustness (9 cells × 5 depths) | 45/45 H1 + 45/45 H2′ (ProtGPT2); 36/45 H1 + 9/45 H2 (RITA) | Cohen's d consistent across seq_gap × topk_frac grid |
 | Activation clamping (ESM-2 layer 16) | Ablation drops contact precision | Wilcoxon p = 0.006 |
-| ProGen2 degeneracy (methodological note) | SAE val_EV saturates 0.985–0.9999 → basis not unique | Paper-dropped; scripts retained in repo |
 
 H2 (raw) on residue-projected ProtGPT2 activations is **substantially a BPE tokenization artifact**: 50.0% of ±1/±2 residue neighbor pairs in the projection are bit-identical by construction, because every residue inside a BPE token shares the same activation vector. The corrected test (H2′) restricts sequential locality to *inter-token* neighbor pairs — the only regime comparable to residue-level ESM-2 — and reverses the direction at all five matched depths. See the **BPE-crossing control** section below.
 
@@ -32,9 +31,8 @@ H2 (raw) on residue-projected ProtGPT2 activations is **substantially a BPE toke
 | ProtT5-enc | Bidirectional encoder (seq2seq) | ~1.2B | residue | 0, 6, 12, 18, 23 |
 | ProtT5-dec | Autoregressive decoder (seq2seq) | ~3B | residue | 0, 6, 12, 18, 23 |
 | RITA_l | Causal decoder (CLM) | 680M | **residue** | 0, 6, 12, 18, 23 |
-| ProGen2-medium | Causal decoder (CLM) | 764M | **residue** | 0, 7, 14, 20, 26 |
 
-**Residue-level causal comparator note:** ProtGPT2's BPE tokenizer means 50% of ±1/±2 residue-neighbour pairs share a token and are bit-identical by construction, biasing the original H2 sequential-locality test. RITA_l and ProGen2 both use 1 token per residue, so their H2 is directly comparable to residue-level ESM-2 without BPE correction. RITA is the primary residue-level causal comparator in v6; ProGen2 was also fully evaluated but dropped from the headline because its SAE val_EV saturates at 0.985–0.9999, producing a degenerate (non-uniquely-identified) feature basis with cross-seed Cohen's d SD 10–50× larger than ESM-2/ProtGPT2. ProGen2 scripts are kept in the repo as a methodological negative-result datapoint.
+**Residue-level causal comparator note:** ProtGPT2's BPE tokenizer means 50% of ±1/±2 residue-neighbour pairs share a token and are bit-identical by construction, biasing the original H2 sequential-locality test. RITA_l uses 1 token per residue, so its H2 is directly comparable to residue-level ESM-2 without BPE correction. RITA is the primary residue-level causal comparator.
 
 **Densification grids (appendix):** two experiments expand sampling from 5 to 9 depths per model. ProtT5 enc+dec densify to `{0, 3, 6, 9, 12, 15, 18, 21, 23}` for localising the H3 encoder-vs-decoder structural-locality crossover. ESM-2 densifies to `{0, 4, 8, 12, 16, 20, 24, 28, 32}` and RITA to `{0, 3, 6, 9, 12, 15, 18, 21, 23}` for H5-style within-model depth-trend appendix figures.
 
@@ -214,19 +212,6 @@ Produces `analysis_results_rita{,_seed43,_seed44,_k128,_split99}/comparison/`,
 `analysis_results_valonly_rita/`, `results_metric_sweep_rita/`, and the
 5-run master table `analysis_results_master_rita/`.
 
-### Residue-level causal comparator — ProGen2 (retained but paper-dropped)
-
-ProGen2 was evaluated alongside RITA but **its SAE val_EV saturates at
-0.985–0.9999, producing a degenerate feature basis (cross-seed Cohen's d
-SD 10–50× that of the other models).** Scripts are retained as a
-methodological negative-result datapoint; the paper's residue-level causal
-claim rests on RITA. To reproduce the ProGen2 chain:
-
-```bash
-.venv/bin/python smoke_test_progen2.py
-./run_progen2_overnight.sh   2>&1 | tee progen2_overnight.log
-```
-
 ### ProtT5 depth densification (appendix — H3 crossover localisation)
 
 Adds 4 new depths per side (enc + dec), expanding the 5-point grid to
@@ -291,7 +276,7 @@ committing overnight compute.
 | Variable | Default | Used by | Description |
 |---|---|---|---|
 | `DEVICE` | auto-detect | `run_all.sh`, `run_unsupervised.py` | Compute device: `cuda`, `mps`, or `cpu` |
-| `MODEL` | `all` | `run_all.sh`, `run_unsupervised.py` | Which PLM(s): `esm2`, `protgpt2`, `prott5_enc`, `prott5_dec`, `rita`, `progen2`, or `all` |
+| `MODEL` | `all` | `run_all.sh`, `run_unsupervised.py` | Which PLM(s): `esm2`, `protgpt2`, `prott5_enc`, `prott5_dec`, `rita`, or `all` |
 | `SAE_SEED` | `42` | `run_all.sh`, `run_unsupervised.py` | SAE weight initialization seed |
 | `K_SPARSE` | `256` | `run_all.sh`, `run_unsupervised.py` | Number of active latents per token |
 | `EXPANSION` | `8` | `run_all.sh`, `run_unsupervised.py` | SAE expansion factor (hidden_dim = input_dim x expansion) |
@@ -307,7 +292,6 @@ committing overnight compute.
 | `PROTT5_BATCH` | `4` | `extract_embeddings.py` | ProtT5 inference batch size (MPS) |
 | `PROTGPT2_BATCH` | `16` | `extract_embeddings.py` | ProtGPT2 inference batch size (MPS) |
 | `RITA_BATCH` | `12` | `extract_embeddings.py` | RITA inference batch size (MPS) |
-| `PROGEN2_BATCH` | `12` | `extract_embeddings.py` | ProGen2 inference batch size (MPS) |
 | `CPU_STAGE_MEM_GB` | `100` | `cpu_stage.py` | Memory budget for parallel workers (GB) |
 | `SAE_PRECISION` | `fp32` | `train_sae.py` | Override to `fp16` for MPS (not recommended) |
 
@@ -376,7 +360,7 @@ results_clamping_esm2_l16/
 |---|---|
 | `run_all.sh` | End-to-end orchestrator: dataset build -> GPU stage -> CPU stage -> hypothesis tests |
 | `build_dataset.py` | Downloads SCOPe proteins, filters by length/coverage, extracts DSSP labels |
-| `extract_embeddings.py` | Extracts hidden states from ESM-2, ProtGPT2, ProtT5-enc, ProtT5-dec, RITA_l, ProGen2 at specified layers |
+| `extract_embeddings.py` | Extracts hidden states from ESM-2, ProtGPT2, ProtT5-enc, ProtT5-dec, RITA_l at specified layers |
 | `sae.py` | TopK Sparse Autoencoder model (encoder, decoder, AuxK loss, dead-latent tracking) |
 | `train_sae.py` | SAE training loop with mixed precision, hardware auto-config, explained variance computation |
 | `run_unsupervised.py` | GPU stage driver: loads dataset, protein-level split, trains SAEs per layer, computes holdout EV |
@@ -445,12 +429,6 @@ CSVs produced (small, paper-quotable):
 | `smoke_test_rita.py` | End-to-end RITA integration check (tokenizer 1:1, model load, layer indexing) |
 | `run_rita.sh` | Single-seed RITA pipeline (MODEL=rita only) |
 | `run_rita_overnight.sh` | Full 5-variant robustness chain + val-only + metric sweep + aggregator |
-| `experiment_h1h2_progen2.py` | H1/H2 test: ESM-2 vs ProGen2 (retained for provenance; see Known Issues) |
-| `experiment_val_only_progen2.py` | Val-only ProGen2 variant |
-| `experiment_metric_sweep_progen2.py` | 9-cell sweep for ProGen2 |
-| `aggregate_progen2_robustness.py` | 5-run ProGen2 master table |
-| `smoke_test_progen2.py` | ProGen2 integration smoke test |
-| `run_progen2_overnight.sh` | Full 5-variant ProGen2 chain (retained as methodological-null datapoint) |
 
 ### Densification scripts (v6 appendix)
 | File | Description |
@@ -497,8 +475,7 @@ CSVs produced (small, paper-quotable):
 - **Activation clamping on MPS**: The intervention hook mixes fp16 (ESM-2 model) with fp32 (SAE model) tensors, triggering an MPS matmul dtype assertion. Use `--device cpu` as a workaround.
 - **PLM outlier features**: ESM-2/ProtGPT2/ProtT5 hidden states have outlier dimensions with magnitudes 50-100x the typical scale (cf. Dettmers et al., 2022). Without Bricken normalization, SAE training diverges (negative EV, loss U-curves).
 - **RITA fp16 checkpoint**: transformers 5.x honours the checkpoint's saved dtype by default, and RITA_l ships fp16. Its custom attention code upcasts softmax to fp32 for numerical stability, producing an `att @ v` dtype mismatch (raises on CPU, silently NaNs middle blocks on MPS). `extract_rita_embeddings` loads with `torch_dtype=torch.float32` and `.float()` to force fp32 end-to-end.
-- **ProGen2 SAE degeneracy**: ProGen2's activations are intrinsically near-low-rank. SAE val_EV saturates at 0.985–0.9999 across depths and seeds, producing a non-uniquely-identified feature basis. Cross-seed Cohen's d SD is 10–50× that of ESM-2/ProtGPT2/ProtT5/RITA. Lowering k to 128 does not fix this. ProGen2 is retained in the codebase as a methodological datapoint but is not cited in the paper's H1/H2 claims.
-- **RITA L3 high EV**: the H5 densification adds RITA layer 3, where val_EV = 0.9989 (≥ 0.99 — the ProGen2-adjacency threshold). RITA SAE bases are cross-seed stable elsewhere, but single-seed L3 is within the degeneracy regime. Aggregate `mean(struct_delta)` with 12k-feature bootstrap CI is robust, but feature-level claims at L3 should be cross-seed-verified before citing.
+- **RITA L3 high EV**: the H5 densification adds RITA layer 3, where val_EV = 0.9989. RITA SAE bases are cross-seed stable elsewhere, but single-seed L3 sits in a high-EV regime where the SAE basis is not uniquely identified. Aggregate `mean(struct_delta)` with 12k-feature bootstrap CI is robust, but feature-level claims at L3 should be cross-seed-verified before citing.
 - **ProtT5 `H3_enc_vs_dec` vs `H4` naming**: the v5 paper labelled this "H4" (in `analyze_hypotheses.py` and `H4_enc_vs_dec.csv`); v6 reframes it as "H3" following the post-submission hypothesis numbering. The densified output is written to `H3_enc_vs_dec_dense.*` and lives alongside the v5 `H4_enc_vs_dec.*` rather than replacing it.
 
 ## Citation
