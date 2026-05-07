@@ -19,7 +19,7 @@ ProtGPT2's BPE tokeniser maps multiple residues into a single token, and the sta
 
 | Check | Result |
 |---|---|
-| Multi-seed reproducibility (seeds 42/43/44) | Cross-seed SD on H1 d ≤ 0.044 across 5 depths — essentially deterministic |
+| Multi-seed reproducibility (seeds 42/43/44) | Cross-seed SD on H1 d ≤ 0.044 (Appendix F Table 7 reports the 5-depth subset {0, 25, 50, 75, 100}%; SAEs are essentially deterministic across initialisation) |
 | k-robustness (k=128 vs paper's k=256) | Direction preserved across ESM-2/ProtGPT2/ProtT5/RITA |
 | Data-split robustness (split seed 99 vs paper's 42) | H1 direction preserved at every depth |
 | Metric sweep (Cα ∈ {6, 8, 10} Å, sep ∈ {8, 12, 24}, quantile ∈ {5, 10, 20}%, window ∈ {±1, ±2, ±4}) | H1 holds at 27/27 Cα×depth cells and 36/45 sep×quantile cells (the 9 non-significant cells all at separation 24 at intermediate depths, where the stricter filter leaves too few edges) |
@@ -31,17 +31,19 @@ ProtGPT2's BPE tokeniser maps multiple residues into a single token, and the sta
 
 ## Models and Depth Matching
 
-| Model | Architecture | Params | Tokenization | Default depths (0%, 25%, 50%, 75%, 100%) |
+H1 (ESM-2 vs RITA) and H2 (ProtT5 enc vs dec) are tested at **nine matched relative depths** {0, 13, 25, 38, 50, 63, 75, 88, 100}%. ProtGPT2 is probed at five depths {0, 25, 50, 75, 100}% for the BPE-tokenisation diagnostic in §4.2 of the paper, and at nine depths in the full metric sweep (Appendix I).
+
+| Model | Architecture | Params | Tokenization | 9-depth grid (paper main) |
 |---|---|---|---|---|
-| ESM-2 (t33) | Bidirectional encoder (MLM) | 650M | residue | 0, 8, 16, 24, 32 |
-| ProtGPT2 | Causal decoder (CLM) | 738M | BPE | 0, 9, 18, 27, 35 |
-| ProtT5-enc | Bidirectional encoder (seq2seq) | ~1.2B | residue | 0, 6, 12, 18, 23 |
-| ProtT5-dec | Autoregressive decoder (seq2seq) | ~3B | residue | 0, 6, 12, 18, 23 |
-| RITA_l | Causal decoder (CLM) | 680M | **residue** | 0, 6, 12, 18, 23 |
+| ESM-2 (t33) | Bidirectional encoder (MLM) | 650M | residue | 0, 4, 8, 12, 16, 20, 24, 28, 32 |
+| RITA_l | Causal decoder (CLM) | 680M | **residue** | 0, 3, 6, 9, 12, 15, 18, 21, 23 |
+| ProtT5-enc | Bidirectional encoder (seq2seq) | ~1.2B | residue | 0, 3, 6, 9, 12, 15, 18, 21, 23 |
+| ProtT5-dec | Autoregressive decoder (seq2seq) | ~3B | residue | 0, 3, 6, 9, 12, 15, 18, 21, 23 |
+| ProtGPT2 | Causal decoder (CLM) | 738M | BPE | 5-depth (BPE diagnostic): 0, 9, 18, 27, 35; 9-depth (sweep): 0, 4, 9, 13, 18, 22, 27, 31, 35 |
 
-**Residue-level causal comparator note:** ProtGPT2's BPE tokenizer means 50% of ±1/±2 residue-neighbour pairs share a token and are bit-identical by construction, biasing the original H2 sequential-locality test. RITA_l uses 1 token per residue, so its H2 is directly comparable to residue-level ESM-2 without BPE correction. RITA is the primary residue-level causal comparator.
+**Why ESM-2 vs RITA is the main contrast:** both are residue-tokenised (1 token per amino acid) and size-matched at 650M / 680M params. ProtGPT2's BPE tokeniser maps multiple residues into a single token (mean ~3 residues/token), which under standard residue-projection gives within-token residues bit-identical SAE activations. This biases the residue-pair L_seq metric (§4.2). RITA preserves a clean apples-to-apples comparison without BPE confounds.
 
-**Densification grids (appendix):** two experiments expand sampling from 5 to 9 depths per model. ProtT5 enc+dec densify to `{0, 3, 6, 9, 12, 15, 18, 21, 23}` for localising the H3 encoder-vs-decoder structural-locality crossover. ESM-2 densifies to `{0, 4, 8, 12, 16, 20, 24, 28, 32}` and RITA to `{0, 3, 6, 9, 12, 15, 18, 21, 23}` for H5-style within-model depth-trend appendix figures.
+**Historical note:** an earlier paper version probed at five depths only; the current paper's main grid is the nine-depth densification reported in Tables 2 and the within-model trajectories of Appendix G. The 5-point grid persists only for the ProtGPT2 BPE diagnostic.
 
 ## Dataset
 
@@ -71,9 +73,10 @@ cpu_stage.py              Step 2: Per-layer structural analysis (CPU)
     |                             - TopK sensitivity sweep
     |
 analyze_hypotheses.py     Step 3: Cross-model hypothesis testing
-                                  - H1/H2 at matched relative depths
-                                  - H3 (ProtT5 enc vs dec)
-                                  - H5 depth trends
+                                  - H1: ESM-2 vs RITA L_struct at 9 matched depths
+                                  - H2: ProtT5 enc vs dec L_struct at 9 matched depths
+                                  - BPE diagnostic: ProtGPT2 L_seq with inter-token control
+                                  - Within-model L_struct trajectories (Appendix G)
                                   - Feature interpretability sensitivity
 
 run_all.sh                Orchestrates Steps 0-3 end-to-end
@@ -219,38 +222,30 @@ Produces `analysis_results_rita{,_seed43,_seed44,_k128,_split99}/comparison/`,
 `analysis_results_valonly_rita/`, `results_metric_sweep_rita/`, and the
 5-run master table `analysis_results_master_rita/`.
 
-### ProtT5 depth densification (appendix — H3 crossover localisation)
+### ProtT5 depth densification — H2 (paper §4.3 / Appendix H)
 
-Adds 4 new depths per side (enc + dec), expanding the 5-point grid to
-`{0, 3, 6, 9, 12, 15, 18, 21, 23}`. The de-risk gate trains ProtT5-dec
-layer 9 first and checks that val_EV and mean struct_delta fit smoothly
-between existing neighbours before committing to the remaining 7 SAEs.
+Builds the **9-depth grid** `{0, 3, 6, 9, 12, 15, 18, 21, 23}` for ProtT5 enc and dec, used to localise the encoder-vs-decoder structural-locality crossover (paper Figure 1 caption / §4.3 reports the crossover at ~42% relative depth, between L9 and L12). Originally an extension over an earlier 5-point grid; **9 depths is now the paper's default** for H2. The de-risk gate trains ProtT5-dec layer 9 first to confirm val_EV and mean struct_delta fit smoothly before committing to the remaining 7 SAEs.
 
 ```bash
 ./run_prott5_densify.sh  2>&1 | tee prott5_densify.log
 ```
 
-Produces `analysis_results/comparison/H3_enc_vs_dec_dense.{csv,png,pdf,txt}`
-with per-layer enc-vs-dec Cohen's d for both `struct_delta` and `seq_delta`
-and a linearly-interpolated zero-crossing marker.
+Produces `analysis_results/comparison/H3_enc_vs_dec_dense.{csv,png,pdf,txt}` with per-layer enc-vs-dec Cohen's d for both `struct_delta` and `seq_delta` and a linearly-interpolated zero-crossing marker. (File names retain "H3" prefix for backwards-compatibility with v5 artefacts; the paper now calls this H2.)
 
-### ESM-2 + RITA within-model H5 densification (appendix — depth-trend)
+### ESM-2 + RITA within-model trajectories — Appendix G
 
-Adds 4 new depths per model. ESM-2: `{0,4,8,12,16,20,24,28,32}`. RITA:
-`{0,3,6,9,12,15,18,21,23}`. Switches reporting from per-feature Spearman
-(statistically weak at 5 points) to per-layer mean `struct_delta` with
-bootstrap 95% CI across features. De-risk gate trains ESM-2 layer 12 first.
+Builds the 9-depth grid for the within-model L_struct trajectory analysis (paper Appendix G, Figure 2, Table 8). ESM-2: `{0,4,8,12,16,20,24,28,32}` (9 layers). RITA: `{0,3,6,9,12,15,18,21,23}` (9 layers). Reports per-layer mean `struct_delta` with bootstrap 95% CI across features (1000 resamples). De-risk gate trains ESM-2 layer 12 first.
 
 ```bash
 ./run_esm_rita_densify.sh  2>&1 | tee esm_rita_densify.log
 ```
 
-Produces `analysis_results/comparison/H5_within_model_dense.{csv,png,pdf,txt}`.
+Produces `analysis_results/comparison/H5_within_model_dense.{csv,png,pdf,txt}`. (File name retains "H5" prefix for backwards-compatibility with the v5 hypothesis numbering; the v6 paper reports these as the within-model depth trajectories of Appendix G, not as a numbered hypothesis.)
 
 ### Per-model layer-list env-var overrides
 
 The densification experiments use four env vars that override the
-default 5-depth matched-depth plan without editing source:
+default 9-depth matched-depth plan without editing source:
 
 ```bash
 ESM2_LAYERS="0,4,8,12,16,20,24,28,32"        MODEL=esm2      ./run_all.sh esm2
@@ -268,9 +263,7 @@ only the new layers re-train; no retraining of committed SAEs.
 .venv/bin/python experiment_preflight.py
 ```
 
-Validates that cache files, layer outputs, META.val_uids, ProtGPT2 BPE
-round-trip, and all five matched-depth pairs are in place before
-committing overnight compute.
+Validates that cache files, layer outputs, META.val_uids, ProtGPT2 BPE round-trip, and the matched-depth pairs are in place before committing overnight compute.
 
 ### Smoke test
 
@@ -289,10 +282,10 @@ committing overnight compute.
 | `EXPANSION` | `8` | `run_all.sh`, `run_unsupervised.py` | SAE expansion factor (hidden_dim = input_dim x expansion) |
 | `RUN_SUFFIX` | `""` | `run_all.sh`, `run_unsupervised.py` | Output directory suffix (e.g., `_seed43`, `_k128`) |
 | `SPLIT_SEED` | `42` | `run_unsupervised.py` | Protein-level 90/10 train/val split seed. Override to probe robustness to protein subset (set RUN_SUFFIX so outputs don't clobber the main run) |
-| `ESM2_LAYERS` | `0,8,16,24,32` | `run_unsupervised.py` | Comma-sep override for ESM-2 layer list. Used by the H5 densification. |
-| `RITA_LAYERS` | `0,6,12,18,23` | `run_unsupervised.py` | Comma-sep override for RITA layer list. Used by the H5 densification. |
-| `PROTT5_ENC_LAYERS` | `0,6,12,18,23` | `run_unsupervised.py` | Comma-sep override for ProtT5-enc layer list. Used by the H3 crossover densification. |
-| `PROTT5_DEC_LAYERS` | `0,6,12,18,23` | `run_unsupervised.py` | Comma-sep override for ProtT5-dec layer list. Used by the H3 crossover densification. |
+| `ESM2_LAYERS` | `0,8,16,24,32` (5-pt) | `run_unsupervised.py` | Comma-sep ESM-2 layer list. Source default is 5 depths; the paper's 9-depth main grid is set by `run_esm_rita_densify.sh` to `0,4,8,12,16,20,24,28,32`. |
+| `RITA_LAYERS` | `0,6,12,18,23` (5-pt) | `run_unsupervised.py` | Comma-sep RITA layer list. Source default is 5 depths; the paper's 9-depth main grid is set by `run_esm_rita_densify.sh` to `0,3,6,9,12,15,18,21,23`. |
+| `PROTT5_ENC_LAYERS` | `0,6,12,18,23` (5-pt) | `run_unsupervised.py` | Comma-sep ProtT5-enc layer list. Source default is 5 depths; the paper's 9-depth main grid is set by `run_prott5_densify.sh` to `0,3,6,9,12,15,18,21,23`. |
+| `PROTT5_DEC_LAYERS` | `0,6,12,18,23` (5-pt) | `run_unsupervised.py` | Comma-sep ProtT5-dec layer list. Source default is 5 depths; the paper's 9-depth main grid is set by `run_prott5_densify.sh` to `0,3,6,9,12,15,18,21,23`. |
 | `SAE_BATCH` | `4096` | `train_sae.py` | SAE training batch size (MPS) |
 | `SAE_CPU_BATCH` | `4096` | `train_sae.py` | SAE training batch size (CPU, >= 8 cores) |
 | `ESM2_BATCH` | `32` | `extract_embeddings.py` | ESM-2 inference batch size (MPS) |
