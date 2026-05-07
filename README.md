@@ -1,26 +1,33 @@
 # SAE-PLM: Sparse Autoencoders Reveal How Training Objectives Shape Structural Representations in Protein Language Models
 
-TopK Sparse Autoencoders (Gao et al., 2024) trained on four protein language model architectures at five matched relative depths, comparing how bidirectional vs causal training objectives shape learned feature geometry.
+TopK Sparse Autoencoders (Gao et al., 2024) trained on four protein language model architectures at nine matched relative depths, comparing how bidirectional vs causal training objectives shape learned feature geometry. ESM-2 vs RITA is the main bidirectional-vs-causal contrast (both residue-tokenised, size-matched); ProtGPT2 is included as a BPE-tokenisation diagnostic only; ProtT5 encoder and decoder are probed separately to test how cross-attention propagates structural context under autoregressive decoding.
 
 ## Key Results
 
+The paper declares **two a priori hypotheses** (no a priori L_seq hypothesis is stated; sequential results are reported alongside L_struct in Table 2):
+
 | Hypothesis | Result | Effect size |
 |---|---|---|
-| **H1**: ESM-2 structural locality > ProtGPT2 | **5/5 depths supported** | Cohen's d = 0.6–1.9 |
-| **H2** (raw): ProtGPT2 sequential locality > ESM-2 | **5/5 depths supported** | Cohen's d = 1.7–5.9 |
-| **H2′** (BPE-corrected, inter-token): ESM-2 sequential locality > ProtGPT2 | **5/5 depths supported (direction reversed)** | Cohen's d = 1.5–6.1 |
-| **H3**: ProtT5 encoder vs decoder (5-point) | **Depth-dependent reversal** | Early: decoder wins; Late: encoder wins |
-| **H3 densified (9 points)** | Crossover localised to **L9–L12** (≈ 42% rel. depth); seq-locality has 3 flips | See appendix `H3_enc_vs_dec_dense` |
-| **H1/H2 residue-level (RITA, 5 variants)** | H1 25/25 depth×variant cells, H2 depth-dependent | H1 d = 0.14–1.44; H2 d = −2.40..+1.15 with L100% flip |
-| **ESM-2 H5 densified (9 points)** | L0 front-loading preserved; mid-peak L16/20, late rebound L32 | Mean struct_delta +0.005 to +0.143 |
-| **RITA H5 densified (9 points)** | No systematic depth trend; flat within 95% CI | Pearson r = +0.00 |
-| Multi-seed reproducibility | d std < 0.05 across 3 seeds (ESM-2, ProtGPT2, ProtT5, RITA) | SAE training essentially deterministic |
-| k-robustness (k=128 vs k=256) | Direction preserved across ESM-2/ProtGPT2/ProtT5/RITA | Attenuated magnitude but sign-stable |
-| Data-split robustness (split seed=99) | H1+H2′ direction preserved 5/5 | Per-depth d delta ≤ 0.07 |
-| Metric-choice robustness (9 cells × 5 depths) | 45/45 H1 + 45/45 H2′ (ProtGPT2); 36/45 H1 + 9/45 H2 (RITA) | Cohen's d consistent across seq_gap × topk_frac grid |
-| Activation clamping (ESM-2 layer 16) | Ablation drops contact precision | Wilcoxon p = 0.006 |
+| **H1**: ESM-2 L_struct > RITA L_struct at every matched depth | **9/9 depths supported on full (n=1,500) and 9/9 on val (n=150)** | Cohen's d on L_struct = +0.05 to +1.44 (full); +0.06 to +0.74 (val); bootstrap 95% CI excludes 0 at every cell |
+| **H2**: ProtT5 encoder leads decoder on L_struct at late depths; decoder leads at early — depth-dependent reversal | **Crossover localised between L9 and L12 (≈42% relative depth)** | d ∈ [−0.40, −0.13] at depths 0–39%, d ∈ [+0.40, +0.69] at depths 52–100%; flip preserved on val |
 
-H2 (raw) on residue-projected ProtGPT2 activations is **substantially a BPE tokenization artifact**: 50.0% of ±1/±2 residue neighbor pairs in the projection are bit-identical by construction, because every residue inside a BPE token shares the same activation vector. The corrected test (H2′) restricts sequential locality to *inter-token* neighbor pairs — the only regime comparable to residue-level ESM-2 — and reverses the direction at all five matched depths. See the **BPE-crossing control** section below.
+### Methodological observation (paper contribution 2, §4.2)
+
+ProtGPT2's BPE tokeniser maps multiple residues into a single token, and the standard residue-projection (uniform 1/L weights) gives every within-token residue **bit-identical SAE activations**. A naïve ProtGPT2-vs-ESM-2 L_seq contrast inherits this artefact: 50.0% of ±2 residue-neighbour pairs are within-token (60,718 / 121,648 directed pairs on val), inflating the apparent causal advantage to d up to +5.9 (Table 3). Restricting to **inter-token** pairs reverses the direction at every depth (27/27 cells across windows ±1/±2/±4). The native-residue RITA-vs-ESM-2 contrast also shows no consistent causal sequential advantage (4/5 depths null or favouring ESM-2). At residue resolution, causal PLMs have no L_seq advantage over bidirectional ones — the apparent advantage is a tokenisation artefact, not architectural. (H1's structural test is unaffected: it requires sequence separation ≥ 12, far beyond any BPE span.)
+
+### Robustness (Appendix sweeps + reproducibility)
+
+| Check | Result |
+|---|---|
+| Multi-seed reproducibility (seeds 42/43/44) | Cross-seed SD on H1 d ≤ 0.044 across 5 depths — essentially deterministic |
+| k-robustness (k=128 vs paper's k=256) | Direction preserved across ESM-2/ProtGPT2/ProtT5/RITA |
+| Data-split robustness (split seed 99 vs paper's 42) | H1 direction preserved at every depth |
+| Metric sweep (Cα ∈ {6, 8, 10} Å, sep ∈ {8, 12, 24}, quantile ∈ {5, 10, 20}%, window ∈ {±1, ±2, ±4}) | H1 holds at 27/27 Cα×depth cells and 36/45 sep×quantile cells (the 9 non-significant cells all at separation 24 at intermediate depths, where the stricter filter leaves too few edges) |
+| Fresh 1,500-protein SCOPe subsample | Direction preserved, max \|Δd\| = 0.08 |
+| Smaller PLM pair (ESM-2 t12 vs RITA-s, ~10× smaller) | 5/5 significant in correct direction |
+| Within-model L_struct trajectories (Appendix G) | Four qualitatively distinct depth signatures (ESM-2 / RITA / ProtT5-enc / ProtT5-dec) |
+| Active-residue threshold sensitivity (Appendix M) | Direction preserved at every threshold; magnitude varies at extreme depths |
+| Per-protein cosine baseline at layer 0 (Appendix L) | RITA's raw-embedding geometry favours contacts more than ESM-2's (d = −0.94, opposite to the SAE-feature direction) — sparse coding does substantive work at L0 |
 
 ## Models and Depth Matching
 
