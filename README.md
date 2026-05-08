@@ -1,33 +1,39 @@
 # SAE-PLM: Sparse Autoencoders Reveal How Training Objectives Shape Structural Representations in Protein Language Models
 
-TopK Sparse Autoencoders (Gao et al., 2024) trained on four protein language model architectures at nine matched relative depths, comparing how bidirectional vs causal training objectives shape learned feature geometry. ESM-2 vs RITA is the main bidirectional-vs-causal contrast (both residue-tokenised, size-matched); ProtGPT2 is included as a BPE-tokenisation diagnostic only; ProtT5 encoder and decoder are probed separately to test how cross-attention propagates structural context under autoregressive decoding.
+TopK Sparse Autoencoders (Gao et al., 2024) applied to **three residue-tokenised PLMs** (ESM-2, RITA, ProtT5; the ProtT5 encoder and decoder are probed separately, giving four rows) at **nine matched relative depths**. ProtGPT2 is included only for the BPE-tokenisation diagnostic in §4.2 (a methodological aside, not part of the main analyses), motivating the paper's restriction of H1 to residue-tokenised models.
 
 ## Key Results
 
-The paper declares **two a priori hypotheses** (no a priori L_seq hypothesis is stated; sequential results are reported alongside L_struct in Table 2):
+The paper declares **two a priori hypotheses**. Sequential locality (L_seq) is reported alongside L_struct in Table 2 but no a priori L_seq hypothesis is stated.
+
+All effect sizes below are **bootstrap means** of Cohen's d across 1000 protein-level cluster resamples (B=1000), with 95% percentile CIs. Per the paper (Appendix K), bootstrap means attenuate 0.05–0.22 below the original-sample d on L_struct (a known cluster-resampling artefact for ratio statistics); the paper reports the bootstrap mean as the more conservative summary.
 
 | Hypothesis | Result | Effect size |
 |---|---|---|
-| **H1**: ESM-2 L_struct > RITA L_struct at every matched depth | **9/9 depths supported on full (n=1,500) and 9/9 on val (n=150)** | Cohen's d on L_struct = +0.05 to +1.44 (full); +0.06 to +0.74 (val); bootstrap 95% CI excludes 0 at every cell |
-| **H2**: ProtT5 encoder leads decoder on L_struct at late depths; decoder leads at early — depth-dependent reversal | **Crossover localised between L9 and L12 (≈42% relative depth)** | d ∈ [−0.40, −0.13] at depths 0–39%, d ∈ [+0.40, +0.69] at depths 52–100%; flip preserved on val |
+| **H1**: ESM-2 L_struct > RITA L_struct at every matched depth | **9/9 depths supported on full (n=1,500) and 9/9 on val (n=150); 95% percentile bootstrap CI excludes 0 at every cell** | Bootstrap mean d on L_struct = +0.04 to +1.22 (full); +0.05 to +0.58 (val). Peak at depth 0%. |
+| **H2**: ProtT5 encoder leads decoder on L_struct at late depths; decoder leads at early — depth-dependent reversal | **Crossover localised between L9 and L12 (≈42% relative depth); flip preserved on val** | d ∈ [−0.38, −0.12] at depths 0–39%, d ∈ [+0.37, +0.66] at depths 52–100% (bootstrap means, full set; Appendix H Table 11) |
+
+### Sequential locality (post-hoc observation, no hypothesis declared)
+
+On L_seq, ESM-2 leads at 7 of 9 depths (often \|d\| > 1 at mid-depth, full-set bootstrap means up to +2.25 at depth 63%); RITA leads at depth 13% (small inversion, d = −0.17 full / −0.05 val) and at depth 100% (decisive, d = −0.99 full / −0.89 val). The paper does not interpret this as an architectural sequential-locality claim.
 
 ### Methodological observation (paper contribution 2, §4.2)
 
-ProtGPT2's BPE tokeniser maps multiple residues into a single token, and the standard residue-projection (uniform 1/L weights) gives every within-token residue **bit-identical SAE activations**. A naïve ProtGPT2-vs-ESM-2 L_seq contrast inherits this artefact: 50.0% of ±2 residue-neighbour pairs are within-token (60,718 / 121,648 directed pairs on val), inflating the apparent causal advantage to d up to +5.9 (Table 3). Restricting to **inter-token** pairs reverses the direction at every depth (27/27 cells across windows ±1/±2/±4). The native-residue RITA-vs-ESM-2 contrast also shows no consistent causal sequential advantage (4/5 depths null or favouring ESM-2). At residue resolution, causal PLMs have no L_seq advantage over bidirectional ones — the apparent advantage is a tokenisation artefact, not architectural. (H1's structural test is unaffected: it requires sequence separation ≥ 12, far beyond any BPE span.)
+ProtGPT2's BPE tokeniser maps multiple residues into a single token, and the standard residue-projection (uniform 1/L weights) gives every within-token residue **bit-identical SAE activations**. A naïve ProtGPT2-vs-ESM-2 L_seq contrast inherits this artefact: 50.0% of ±2 residue-neighbour pairs are within-token (60,718 / 121,648 directed pairs on val), inflating the apparent causal advantage to d up to +5.9 at five matched depths (Table 3). Restricting to **inter-token** pairs reverses the direction at every depth (27/27 cells across windows ±1/±2/±4). At residue resolution, causal PLMs have no L_seq advantage over bidirectional ones — the apparent advantage is a tokenisation artefact, not architectural. ProtGPT2 is therefore **excluded from the main H1 analyses**; H1 rests on RITA as the residue-tokenised causal comparator. (H1's structural test is unaffected by BPE: it requires sequence separation ≥ 12, far beyond any BPE span.)
 
-### Robustness (Appendix sweeps + reproducibility)
+### Robustness (paper Appendices F, G, I, J, K, L, M)
 
 | Check | Result |
 |---|---|
-| Multi-seed reproducibility (seeds 42/43/44) | Cross-seed SD on H1 d ≤ 0.044 (Appendix F Table 7 reports the 5-depth subset {0, 25, 50, 75, 100}%; SAEs are essentially deterministic across initialisation) |
-| k-robustness (k=128 vs paper's k=256) | Direction preserved across ESM-2/ProtGPT2/ProtT5/RITA |
-| Data-split robustness (split seed 99 vs paper's 42) | H1 direction preserved at every depth |
-| Metric sweep (Cα ∈ {6, 8, 10} Å, sep ∈ {8, 12, 24}, quantile ∈ {5, 10, 20}%, window ∈ {±1, ±2, ±4}) | H1 holds at 27/27 Cα×depth cells and 36/45 sep×quantile cells (the 9 non-significant cells all at separation 24 at intermediate depths, where the stricter filter leaves too few edges) |
-| Fresh 1,500-protein SCOPe subsample | Direction preserved, max \|Δd\| = 0.08 |
-| Smaller PLM pair (ESM-2 t12 vs RITA-s, ~10× smaller) | 5/5 significant in correct direction |
-| Within-model L_struct trajectories (Appendix G) | Four qualitatively distinct depth signatures (ESM-2 / RITA / ProtT5-enc / ProtT5-dec) |
-| Active-residue threshold sensitivity (Appendix M) | Direction preserved at every threshold; magnitude varies at extreme depths |
-| Per-protein cosine baseline at layer 0 (Appendix L) | RITA's raw-embedding geometry favours contacts more than ESM-2's (d = −0.94, opposite to the SAE-feature direction) — sparse coding does substantive work at L0 |
+| Multi-seed reproducibility (seeds 42/43/44) | Cross-seed SD on H1 d ≤ 0.044 across the 5-depth subset {0, 25, 50, 75, 100}% reported in Appendix F; SAEs essentially deterministic across initialisation |
+| k-robustness (k=128 vs paper's k=256) | H1 direction preserved at every depth |
+| Data-split robustness (99/1 split seed vs main 90/10 seed 42) | H1 direction preserved at every depth |
+| Metric sweep (Cα ∈ {6, 8, 10} Å, sep ∈ {8, 12, 24}, quantile ∈ {5, 10, 20}%, window ∈ {±1, ±2, ±4}; Appendix I) | H1 holds at 27/27 Cα×depth cells and 36/45 separation×quantile cells (the 9 non-significant cells all at sequence separation ≥ 24 at intermediate depths, where the stricter filter leaves too few residue pairs) |
+| Fresh 1,500-protein SCOPe subsample (Appendix J Table 16) | Direction preserved at every depth; max \|Δd\| = 0.08 vs main run (original-sample d, pre-bootstrap, used for direct subsample-to-subsample comparison) |
+| Smaller PLM pair (ESM-2 t12 vs RITA-s, Appendix J) | 5/5 significant in correct direction |
+| Within-model L_struct trajectories (Appendix G, Figure 2, Table 10) | Four qualitatively distinct depth signatures (ESM-2 / RITA / ProtT5-enc / ProtT5-dec); peak/trough indices and effect sizes per model |
+| Active-residue threshold sensitivity (Appendix M) | Direction preserved at every threshold; magnitude varies at extreme depths (layer 0, layer L_max) |
+| Embedding-only cosine-cohesion baseline at layer 0 (Appendix L) | The peak L0 H1 effect (d = +1.22 bootstrap mean) is not visible to whole-vector cosine on raw input embeddings: ESM-2's L0 cosine landscape is near-saturated (mean random-pair cosine 0.975, sd 0.008) and cannot resolve the H1 effect via whole-vector averaging. The cosine-cohesion contrast (contact pairs minus sequence-distance-matched non-contact pairs, per protein, then Cohen's d across proteins) is d = −0.94 (95% CI [−1.06, −0.83], 0/1000 favoured ESM-2) — opposite direction to SAE features. Sparse coding therefore does substantive work at L0. |
 
 ## Models and Depth Matching
 
@@ -143,7 +149,7 @@ PYTHONUNBUFFERED=1 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
     --save-dir results_clamping_esm2_l16
 ```
 
-### BPE-crossing control (H2′)
+### BPE inter-token control (paper §4.2 BPE diagnostic)
 
 ```bash
 # Single-layer (original single-depth experiment)
@@ -408,10 +414,10 @@ CSVs produced (small, paper-quotable):
 ### Post-submission robustness scripts
 | File | Description |
 |---|---|
-| `experiment_bpe_correction.py` | Single-layer BPE intra-token exclusion for ProtGPT2 sequential locality (the H2′ metric) |
-| `experiment_bpe_crossing_all_depths.py` | Wrapper: runs the above at all 5 matched depths and aggregates H2′ |
-| `experiment_val_only_h1h2.py` | Recomputes H1 and H2 on the 150-protein val subset (raw metric) |
-| `experiment_h2prime_valonly.py` | Recomputes H2′ (inter-token) on val, using existing ESM-2 val CSV |
+| `experiment_bpe_correction.py` | Single-layer BPE intra-token exclusion for ProtGPT2 L_seq (the inter-token control of paper §4.2; previously called "H2′") |
+| `experiment_bpe_crossing_all_depths.py` | Wrapper: runs the above at all 5 matched depths and aggregates the inter-token L_seq |
+| `experiment_val_only_h1h2.py` | Recomputes H1 and L_seq on the 150-protein val subset (residue-projection metric) |
+| `experiment_h2prime_valonly.py` | Recomputes the inter-token L_seq on val, using the existing ESM-2 val CSV |
 | `experiment_metric_sweep.py` | Joint sweep over `seq_gap_min` × `topk_frac` grid, with H1/H2′ per cell |
 | `experiment_preflight.py` | 30 s sanity check for all cached artifacts before committing overnight compute |
 | `experiment_expanded_annotations.py` | (Limitation 3) continuous RSA + UniProt functional-site probes |
