@@ -132,7 +132,7 @@ def map_scope_to_uniprot_sifts(uids: list, pdb_dir: Path) -> dict:
         import gzip
         print(f"  Downloading SIFTS mapping...")
         req = urllib.request.Request(sifts_url)
-        req.add_header("User-Agent", "Python-urllib/BIOL0044-SAE-project")
+        req.add_header("User-Agent", "Python-urllib/sae-plm-research")
         response = urllib.request.urlopen(req, timeout=60)
         data = gzip.decompress(response.read()).decode("utf-8")
 
@@ -158,7 +158,7 @@ def map_scope_to_uniprot_sifts(uids: list, pdb_dir: Path) -> dict:
                 url = (f"https://data.rcsb.org/rest/v1/core/uniprot/"
                        f"{pdb_code}/1")
                 req = urllib.request.Request(url)
-                req.add_header("User-Agent", "Python-urllib/BIOL0044")
+                req.add_header("User-Agent", "Python-urllib/sae-plm-research")
                 resp = urllib.request.urlopen(req, timeout=10)
                 data = json.loads(resp.read().decode())
                 if isinstance(data, list) and data:
@@ -186,7 +186,7 @@ def fetch_uniprot_features(accession: str) -> list:
     url = f"https://rest.uniprot.org/uniprotkb/{accession}.json"
     try:
         req = urllib.request.Request(url)
-        req.add_header("User-Agent", "Python-urllib/BIOL0044-SAE-project")
+        req.add_header("User-Agent", "Python-urllib/sae-plm-research")
         resp = urllib.request.urlopen(req, timeout=15)
         data = json.loads(resp.read().decode())
     except Exception:
