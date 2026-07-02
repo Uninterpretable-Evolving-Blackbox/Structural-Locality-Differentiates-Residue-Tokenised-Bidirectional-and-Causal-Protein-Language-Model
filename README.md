@@ -1,498 +1,235 @@
-# SAE-PLM: Sparse Autoencoders Reveal How Training Objectives Shape Structural Representations in Protein Language Models
+# Structural Locality Differentiates Residue-Tokenised Bidirectional and Causal Protein Language Model Families
 
-TopK Sparse Autoencoders (Gao et al., 2024) applied to **three residue-tokenised PLMs** (ESM-2, RITA, ProtT5; the ProtT5 encoder and decoder are probed separately, giving four rows) at **nine matched relative depths**. ProtGPT2 is included only for the BPE-tokenisation diagnostic in §4.2 (a methodological aside, not part of the main analyses), motivating the paper's restriction of H1 to residue-tokenised models.
+**TopK sparse autoencoders on protein LM activations reveal that bidirectional models encode long-range 3D structure more locally in feature space than matched causal models — a family-level, geometric, correlational pattern, not a claim about training objective alone.**
 
-## Key Results
+> **Accepted** to the [ICML 2026 Workshop on Mechanistic Interpretability](https://icml.cc/).  
+> This repository is the **living project page** for poster and workshop visitors. A standalone PDF is not required to follow the work; figures, numbers, and reproduction commands are here. Full agent/developer handoff: [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
 
-The paper declares **two a priori hypotheses**. Sequential locality (L_seq) is reported alongside L_struct in Table 2 but no a priori L_seq hypothesis is stated.
+**Public repo:** [github.com/Uninterpretable-Evolving-Blackbox/Structural-Locality-Differentiates-Residue-Tokenised-Bidirectional-and-Causal-Protein-Language-Model](https://github.com/Uninterpretable-Evolving-Blackbox/Structural-Locality-Differentiates-Residue-Tokenised-Bidirectional-and-Causal-Protein-Language-Model)  
+*(git `origin` may still show `submission_2`; content is the same project.)*
 
-All effect sizes below are **bootstrap means** of Cohen's d across 1000 protein-level cluster resamples (B=1000), with 95% percentile CIs. Per the paper (Appendix K), bootstrap means attenuate 0.05–0.22 below the original-sample d on L_struct (a known cluster-resampling artefact for ratio statistics); the paper reports the bootstrap mean as the more conservative summary.
+---
 
-| Hypothesis | Result | Effect size |
-|---|---|---|
-| **H1**: ESM-2 L_struct > RITA L_struct at every matched depth | **9/9 depths supported on full (n=1,500) and 9/9 on val (n=150); 95% percentile bootstrap CI excludes 0 at every cell** | Bootstrap mean d on L_struct = +0.04 to +1.22 (full); +0.05 to +0.58 (val). Peak at depth 0%. |
-| **H2**: ProtT5 encoder leads decoder on L_struct at late depths; decoder leads at early — depth-dependent reversal | **Crossover localised between L9 and L12 (≈42% relative depth); flip preserved on val** | d ∈ [−0.38, −0.12] at depths 0–39%, d ∈ [+0.37, +0.66] at depths 52–100% (bootstrap means, full set; Appendix H Table 11) |
+## Headline result (H1)
 
-### Sequential locality (post-hoc observation, no hypothesis declared)
+At **nine matched relative depths**, SAE features from **ESM-2** (bidirectional, MLM) show higher **structural locality** `L_struct` than **RITA** (causal, CLM) — on the full 1,500-protein set and on the 150-protein validation holdout.
 
-On L_seq, ESM-2 leads at 7 of 9 depths (often \|d\| > 1 at mid-depth, full-set bootstrap means up to +2.25 at depth 63%); RITA leads at depth 13% (small inversion, d = −0.17 full / −0.05 val) and at depth 100% (decisive, d = −0.99 full / −0.89 val). The paper does not interpret this as an architectural sequential-locality claim.
+| Scope | What we claim | What we do *not* claim |
+|-------|---------------|------------------------|
+| **Contrast** | ESM-2 vs RITA at matched depth (650M / 680M, residue-tokenised) | That MLM *alone* causes the effect (architecture, data, and scale co-vary) |
+| **Metric** | `L_struct` = shuffle-corrected co-activation contrast for Cα-neighbours (<8 Å, sequence gap ≥12) | General “interpretability” or sequence locality |
+| **Evidence type** | Correlational SAE feature geometry (+ convergent extension lenses below) | Proven causal necessity of individual features (steering is a null) |
 
-### Methodological observation (paper contribution 2, §4.2)
+**Fold-cluster bootstrap (extension, B=1000):** H1 survives phylogenetic non-independence — **9/9 depths** with fold-level 95% CI excluding 0 on the full set (13% depth is the honest marginal cell: lower bound ≈ 0). Effective *n* ≈ 530–640 after design effect (ICC ≈ 0.54–0.74), not 1,500 independent domains.
 
-ProtGPT2's BPE tokeniser maps multiple residues into a single token, and the standard residue-projection (uniform 1/L weights) gives every within-token residue **bit-identical SAE activations**. A naïve ProtGPT2-vs-ESM-2 L_seq contrast inherits this artefact: 50.0% of ±2 residue-neighbour pairs are within-token (60,718 / 121,648 directed pairs on val), inflating the apparent causal advantage to d up to +5.9 at five matched depths (Table 3). Restricting to **inter-token** pairs reverses the direction at every depth (27/27 cells across windows ±1/±2/±4). At residue resolution, causal PLMs have no L_seq advantage over bidirectional ones — the apparent advantage is a tokenisation artefact, not architectural. ProtGPT2 is therefore **excluded from the main H1 analyses**; H1 rests on RITA as the residue-tokenised causal comparator. (H1's structural test is unaffected by BPE: it requires sequence separation ≥ 12, far beyond any BPE span.)
+Canonical CSV: `outputs_robustness/bootstrap_h1_full_bylevel_minact0.csv`
 
-### Robustness (paper Appendices F, G, I, J, K, L, M)
+---
 
-| Check | Result |
-|---|---|
-| Multi-seed reproducibility (seeds 42/43/44) | Cross-seed SD on H1 d ≤ 0.044 across the 5-depth subset {0, 25, 50, 75, 100}% reported in Appendix F; SAEs essentially deterministic across initialisation |
-| k-robustness (k=128 vs paper's k=256) | H1 direction preserved at every depth |
-| Data-split robustness (99/1 split seed vs main 90/10 seed 42) | H1 direction preserved at every depth |
-| Metric sweep (Cα ∈ {6, 8, 10} Å, sep ∈ {8, 12, 24}, quantile ∈ {5, 10, 20}%, window ∈ {±1, ±2, ±4}; Appendix I) | H1 holds at 27/27 Cα×depth cells and 36/45 separation×quantile cells (the 9 non-significant cells all at sequence separation ≥ 24 at intermediate depths, where the stricter filter leaves too few residue pairs) |
-| Fresh 1,500-protein SCOPe subsample (Appendix J Table 16) | Direction preserved at every depth; max \|Δd\| = 0.08 vs main run (original-sample d, pre-bootstrap, used for direct subsample-to-subsample comparison) |
-| Smaller PLM pair (ESM-2 t12 vs RITA-s, Appendix J) | 5/5 significant in correct direction |
-| Within-model L_struct trajectories (Appendix G, Figure 2, Table 10) | Four qualitatively distinct depth signatures (ESM-2 / RITA / ProtT5-enc / ProtT5-dec); peak/trough indices and effect sizes per model |
-| Active-residue threshold sensitivity (Appendix M) | Direction preserved at every threshold; magnitude varies at extreme depths (layer 0, layer L_max) |
-| Embedding-only cosine-cohesion baseline at layer 0 (Appendix L) | The peak L0 H1 effect (d = +1.22 bootstrap mean) is not visible to whole-vector cosine on raw input embeddings: ESM-2's L0 cosine landscape is near-saturated (mean random-pair cosine 0.975, sd 0.008) and cannot resolve the H1 effect via whole-vector averaging. The cosine-cohesion contrast (contact pairs minus sequence-distance-matched non-contact pairs, per protein, then Cohen's d across proteins) is d = −0.94 (95% CI [−1.06, −0.83], 0/1000 favoured ESM-2) — opposite direction to SAE features. Sparse coding therefore does substantive work at L0. |
+## Key numbers (poster-friendly)
 
-## Models and Depth Matching
+Numbers below are from completed runs on disk (`results_*/summary.json`, `outputs_robustness/*.csv`). Concept-F1 headline cells use **symmetric seeds** (trained: SAE init 42/43/44; random: PLM weight-init 0/1/2); other extension metrics are mostly **SAE seed 42** unless noted.
 
-H1 (ESM-2 vs RITA) and H2 (ProtT5 enc vs dec) are tested at **nine matched relative depths** {0, 13, 25, 38, 50, 63, 75, 88, 100}%. ProtGPT2 is probed at five depths {0, 25, 50, 75, 100}% for the BPE-tokenisation diagnostic in §4.2 of the paper, and at nine depths in the full metric sweep (Appendix I).
+| Lens | ESM-2 (headline layer) | RITA (matched) | Control / honest negative |
+|------|------------------------|----------------|---------------------------|
+| **`L_struct` H1** | > RITA at all 9 depths | Lower at every depth | Fold bootstrap 9/9 positive (main pair) |
+| **Concept-F1** (InterPLM-style, mean best test-F1 per concept) | **0.71 ± 0.009** @ L16 (SAE seeds 42/43/44) | **0.63 ± 0.005** @ L18 | Random PLM weights @ L16: **0.30** mean (range **0.12–0.40**, weight seeds 0/1/2) |
+| **Linear probe** (helix AUROC, raw activations) | **0.930** @ L16 | **0.876** @ L18 | Raw **≥** SAE everywhere (SAEs are not for decoding; H1 still reproduces on raw) |
+| **`L_struct` null floor** (real vs degree-matched graph) | Real mean **0.053** vs null **−0.105** @ L16 | RITA real ≫ null (~10–22× ratio vs ESM-2 ~150–1350×) | Shuffled-graph null ≈ 0 |
+| **Per-feature ablation** (Δ contact precision) | Struct features more harmful than random @ L16, **p=0.022** | — | Effect size **tiny** (weak APC-cosine readout) |
+| **Steering** (structural vs random @ 4× dose) | Directionally positive slope | — | **p≈0.10**, CI includes 0 — **not significant** |
+| **Second PLM pair** (ProtBert-BFD vs ProGen2) | Descriptive Δ mostly ProtBert > ProGen2 | Fold bootstrap **6/9** depths with CI > 0; **13% depth reverses** | Preliminary generalisation only |
 
-| Model | Architecture | Params | Tokenization | 9-depth grid (paper main) |
-|---|---|---|---|---|
-| ESM-2 (t33) | Bidirectional encoder (MLM) | 650M | residue | 0, 4, 8, 12, 16, 20, 24, 28, 32 |
-| RITA_l | Causal decoder (CLM) | 680M | **residue** | 0, 3, 6, 9, 12, 15, 18, 21, 23 |
-| ProtT5-enc | Bidirectional encoder (seq2seq) | ~1.2B | residue | 0, 3, 6, 9, 12, 15, 18, 21, 23 |
-| ProtT5-dec | Autoregressive decoder (seq2seq) | ~3B | residue | 0, 3, 6, 9, 12, 15, 18, 21, 23 |
-| ProtGPT2 | Causal decoder (CLM) | 738M | BPE | 5-depth (BPE diagnostic): 0, 9, 18, 27, 35; 9-depth (sweep): 0, 4, 9, 13, 18, 22, 27, 31, 35 |
+**Concept-F1 headline protocol:** Symmetric comparison at ESM-2 L16 uses **protein-level** val/test split and **80 concepts** for all arms (`results_concept_f1_multiseed_headline/summary.json`). Trained: SAE init seeds {42,43,44}. Random weights: PLM weight-init seeds {0,1,2}. Seed 0 alone gives **0.12** (floor); seeds 1/2 are **~0.40** — report the **triple mean (0.30)** with seed dots, not seed 0 alone. Coarse SCOPe-class signal partly survives on random weights.
 
-**Why ESM-2 vs RITA is the main contrast:** both are residue-tokenised (1 token per amino acid) and size-matched at 650M / 680M params. ProtGPT2's BPE tokeniser maps multiple residues into a single token (mean ~3 residues/token), which under standard residue-projection gives within-token residues bit-identical SAE activations. This biases the residue-pair L_seq metric (§4.2). RITA preserves a clean apples-to-apples comparison without BPE confounds.
+---
 
-**Historical note:** an earlier paper version probed at five depths only; the current paper's main grid is the nine-depth densification reported in Tables 2 and the within-model trajectories of Appendix G. The 5-point grid persists only for the ProtGPT2 BPE diagnostic.
+## Workshop paper vs post-acceptance extensions
 
-## Dataset
+| Topic | In submitted workshop paper | Post-acceptance extension (this repo) |
+|-------|----------------------------|----------------------------------------|
+| **H1** ESM-2 vs RITA `L_struct`, 9 depths | ✓ Main result + metric sweeps, seeds 42/43/44, k/split robustness | Fold-cluster bootstrap; concept-F1; null calibration; probe; ablation; steering |
+| **H2** ProtT5 encoder vs decoder crossover (~42% depth) | ✓ | Fold CIs for enc/dec pair (`v2_cis_pair_pt5_fold.csv`) |
+| **§4.2** ProtGPT2 BPE sequential-locality artefact | ✓ Inter-token control | — |
+| **Within-model depth trajectories** (Appendix G) | ✓ Four PLM signatures | Fold trajectory CIs (`v2_cis_trajectory.csv`) |
+| **Multi-seed SAE training** | ✓ Appendix F (cross-seed SD; paper table at 5 depths) | 9-depth grids re-run: `outputs_layerwise_seed{43,44}/` |
+| **Randomised PLM weights** | — | ✓ ESM-2 × 9 layers, seed 0; headline L16 seeds 0/1/2 vs trained SAE seeds 42/43/44 |
+| **InterPLM-style concept alignment** | — | ✓ 4 residue models × 9 layers |
+| **“Do you need SAEs?” probe** | — | ✓ ESM-2 + RITA × 9 (raw wins; ESM-2 raw > RITA raw) |
+| **Causal intervention** | Activation clamping (appendix) | Per-feature ablation (E2); steering dose-response (E3, null) |
+| **Second PLM pair** (ProtBert-BFD vs ProGen2) | — | ✓ Grid trained; fold bootstrap **partial** (6/9 depths) |
+| **Joint k × expansion grid** | Separate single-layer ablations | ✓ 6 headline layers — confirms paper k=256, exp=8× |
+| **Fold-level CIs for all paper tables** | Protein-level bootstrap | ✓ ESM/RITA + ProtT5 v2; val sweeps (`v3opt_cis_val_sweeps_fold.csv`) |
+| **Cross-attention analysis** | — | ✗ Not started |
+| **LLM auto-interp / RAVEL** | — | ✗ Deferred (needs LLM API) |
+| **Cross-model summary figure + arXiv draft** | Workshop PDF | ✗ Tables/figures in progress |
 
-- 1,500 proteins from SCOPe 2.08 (40% identity filter)
-- Stratified by fold (432 folds, all 7 SCOPe classes)
-- Filtered to >= 80% DSSP secondary-structure coverage
-- 295,240 total residues (mean length 197)
-- Protein-level 90/10 train/validation split (seed 42)
+---
 
-## Pipeline
+## Experiment catalogue
 
-```
-build_dataset.py          Step 0: Pull SCOPe, filter, download PDBs, compute DSSP
-    |
-subsample_dataset.py      Optional: subsample from full SCOPe to N proteins
-    |
-run_unsupervised.py       Step 1: Extract PLM embeddings + train SAEs (GPU/MPS)
-    |                             - Bricken normalization (mean L2 → sqrt(D))
-    |                             - Protein-level train/val split
-    |                             - TopK SAE with AuxK dead-latent recovery
-    |
-cpu_stage.py              Step 2: Per-layer structural analysis (CPU)
-    |                             - Feature-structure correlations (helix/strand/burial)
-    |                             - Fold enrichment
-    |                             - Structural vs sequential locality (sparse matrix)
-    |                             - UMAP on decoder dictionary + residue activations
-    |                             - TopK sensitivity sweep
-    |
-analyze_hypotheses.py     Step 3: Cross-model hypothesis testing
-                                  - H1: ESM-2 vs RITA L_struct at 9 matched depths
-                                  - H2: ProtT5 enc vs dec L_struct at 9 matched depths
-                                  - BPE diagnostic: ProtGPT2 L_seq with inter-token control
-                                  - Within-model L_struct trajectories (Appendix G)
-                                  - Feature interpretability sensitivity
+Status verified against on-disk artefacts (2026-07-01). “Partial” = done for main configuration but missing robustness breadth or full generalisation.
 
-run_all.sh                Orchestrates Steps 0-3 end-to-end
-```
+| ID | Script | Status | Output |
+|----|--------|--------|--------|
+| **Core pipeline** | `run_all.sh`, `cpu_stage.py`, `analyze_hypotheses.py` | **Done** | `outputs_layerwise/`, `analysis_results/` |
+| **H1 fold bootstrap** | `outputs_robustness/compute_h1_bootstrap.py` | **Done** | `bootstrap_h1_*_bylevel_minact0.csv` |
+| **E0 Concept-F1** | `experiment_concept_f1.py` | **Done** (54 layers) | `results_concept_f1/` |
+| **E1 Probe baseline** | `experiment_probe_baseline.py` | **Done** (ESM-2 + RITA) | `results_probe/` |
+| **E2 Causal ablation** | `experiment_causal_features.py` | **Done** (ESM-2 × 9) | `results_causal/` |
+| **E3 Steering sweep** | `experiment_steering_sweep.py` | **Done** (null result) | `results_steering_sweep/` |
+| **E4 Null calibration** | `experiment_null_calibration.py` | **Done** | `results_null/` |
+| **C1 Random weights** | `experiment_random_control.py` | **Done** (seed 0 all layers; seeds 1/2 headline L16) | `outputs_random/`, `outputs_random_weightseed{1,2}/` |
+| **Metric independence** | `experiment_interp_comparison.py` | **Done** | `results_interp_comparison/` |
+| **SAE diagnostics** | `experiment_sae_diagnostics.py` | **Done** | `results_sae_diagnostics/` (`diagnostics.json`) |
+| **LM faithfulness** | `experiment_lm_faithfulness.py` | **Done** (ESM-2) | `results_faithfulness/` |
+| **Joint k×exp** | `experiment_joint_sweep.py` | **Done** (6 layers) | `results_joint_sweep/` |
+| **Multi-seed SAE** | seeds 43/44 full grid | **Done** | `outputs_layerwise_seed{43,44}/`, `analysis_results_multiseed/` |
+| **New PLM pair** | ProtBert-BFD + ProGen2 | **Partial** | `outputs_layerwise_newpair/`, `bootstrap_h1_newpair_*` |
+| **Tier 4 fold CIs** | `run_tier4_fold_cis.sh` | **Done** (ESM/RITA, ProtT5, v3 sweeps) | `outputs_robustness/v2_*_fold.csv`, `v3opt_cis_val_sweeps_fold.csv` |
+| **Extension multi-seed** | concept-F1 headline seeds 43/44 | **Done** | `results_concept_f1_multiseed_headline/` |
+| **Feature viz** | `experiment_feature_viz.py` | **Partial** (sample layers) | `results_feature_viz/` |
+| **Cross-attention** | — | **Not done** | — |
 
-## Reproducing the Experiments
+---
 
-### Prerequisites
+## What is `L_struct`?
+
+Per SAE feature, shuffle-corrected standardised contrast of neighbour co-activation among **long-range structural contacts** (Cα distance < 8 Å and sequence separation ≥ 12). Implemented in `cpu_stage.py` as `struct_delta`. Sequential variant `L_seq` (±2 neighbours) is reported but **not** an a priori hypothesis — it is confounded (see ProtGPT2 BPE diagnostic in the paper).
+
+---
+
+## Models and depths
+
+Main H1/H2 grid: **nine matched relative depths** {0, 13, 25, 38, 50, 63, 75, 88, 100}%.
+
+| Model | Role | Layers (9-depth grid) |
+|-------|------|------------------------|
+| ESM-2 t33 | Bidirectional MLM (H1) | 0, 4, 8, 12, 16, 20, 24, 28, 32 |
+| RITA-l | Causal CLM (H1 comparator) | 0, 3, 6, 9, 12, 15, 18, 21, 23 |
+| ProtT5 enc / dec | Encoder–decoder (H2) | 0, 3, 6, 9, 12, 15, 18, 21, 23 |
+| ProtGPT2 | BPE diagnostic only | Not in main H1/H2 |
+| ProtBert-BFD / ProGen2 | Second pair (extension) | See `outputs_layerwise_newpair/` |
+
+Dataset: **1,500** SCOPe 2.08 domains (40% ID), ≥80% DSSP coverage, protein-level 90/10 split (seed 42).
+
+---
+
+## Reproducing the work
+
+### Environment
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-# Also need DSSP: brew install dssp (macOS) or conda install -c salilab dssp
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+source env_local_caches.sh          # HF offline + /tmp pycache (required on iCloud-synced paths)
+# DSSP: brew install dssp  (macOS) or conda install -c salilab dssp
 ```
 
-### Main pipeline (seed=42, k=256, expansion=8)
+Always use `.venv/bin/python`. PLM loads expect `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` (set by `env_local_caches.sh`).
+
+### Main workshop pipeline (seed 42, k=256, expansion 8×)
 
 ```bash
-# Step 0: Build dataset (downloads SCOPe + PDBs, ~15 min)
 .venv/bin/python build_dataset.py
-
-# Subsample to 1500 proteins
 .venv/bin/python subsample_dataset.py --n 1500 --min-coverage 0.80 --seed 42
-
-# Steps 1-3: Full pipeline (~3-4 hr on Apple Silicon MPS)
 PYTHONUNBUFFERED=1 ./run_all.sh 2>&1 | tee main_run.log
 ```
 
-### Multi-seed runs (for error bars)
+Nine-depth densification (if starting from 5-depth defaults): `./run_esm_rita_densify.sh`, `./run_prott5_densify.sh`.
+
+### Extension examples
 
 ```bash
-PYTHONUNBUFFERED=1 SAE_SEED=43 RUN_SUFFIX=_seed43 ./run_all.sh 2>&1 | tee run_seed43.log
-PYTHONUNBUFFERED=1 SAE_SEED=44 RUN_SUFFIX=_seed44 ./run_all.sh 2>&1 | tee run_seed44.log
-.venv/bin/python aggregate_seeds.py --seeds 42 43 44 --out analysis_results_multiseed
+# Concept-F1 (one layer)
+.venv/bin/python experiment_concept_f1.py \
+  --layer-dir outputs_layerwise/esm2/layer_16 \
+  --save-dir results_concept_f1/esm2_l16
+
+# H1 fold-cluster bootstrap (canonical)
+.venv/bin/python -u outputs_robustness/compute_h1_bootstrap.py \
+  --cluster-levels fold,protein --min-active 0 --depths all --n-boot 1000
+
+# Random-weights control (note --weight-seed)
+.venv/bin/python experiment_random_control.py \
+  --ref-layer-dir outputs_layerwise/esm2/layer_16 \
+  --model esm2 --layer 16 --weight-seed 0 \
+  --out-layer-dir outputs_random/esm2/layer_16
+
+# Symmetric headline Concept-F1 (SAE seeds 43/44 + aggregate table)
+./run_concept_f1_multiseed_headline.sh
+.venv/bin/python summarize_concept_f1_multiseed_headline.py
+
+# Poster figures (concept-F1 depth, lens independence, controls with seed dots)
+.venv/bin/python make_poster_fig_lenses_controls.py
 ```
 
-### k-robustness check
+Overnight CPU/MPS runners: `run_overnight_cpu.sh`, `run_overnight_mps.sh`, `run_tier1b_random_weight_seeds.sh`. See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the full script index.
 
-```bash
-PYTHONUNBUFFERED=1 K_SPARSE=128 RUN_SUFFIX=_k128 ./run_all.sh 2>&1 | tee run_k128.log
-```
+---
 
-### Ablations (ESM-2 layer 16)
-
-```bash
-# k_sparse ablation (k in {64, 128, 256}), ~15 min
-.venv/bin/python ablation_k.py
-
-# Expansion factor ablation ({4, 8, 16, 32}x, fixed-k + matched-density), ~50 min
-.venv/bin/python ablation_expansion.py
-```
-
-### Activation clamping (causal evidence)
-
-```bash
-# Uses CPU to avoid MPS fp16/fp32 dtype mismatch in the intervention hook
-PYTHONUNBUFFERED=1 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
-.venv/bin/python experiment_activation_clamping.py \
-    --layer-dir outputs_layerwise/esm2/layer_16 \
-    --pdb-dir cache/pdb_files \
-    --device cpu \
-    --top-k 10 \
-    --max-proteins 200 \
-    --save-dir results_clamping_esm2_l16
-```
-
-### BPE inter-token control (paper §4.2 BPE diagnostic)
-
-```bash
-# Single-layer (original single-depth experiment)
-.venv/bin/python experiment_bpe_correction.py \
-    --layer-dir outputs_layerwise/protgpt2/layer_18 \
-    --esm2-layer-dir outputs_layerwise/esm2/layer_16 \
-    --save-dir results_bpe_crossing_l18
-
-# All 5 matched depths on the main run (~15 min)
-.venv/bin/python experiment_bpe_crossing_all_depths.py \
-    --outputs-dir outputs_layerwise \
-    --out        results_bpe_crossing \
-    --n-shuffles 5
-
-# Same, on any robustness run (seed43/44/k128/split99)
-.venv/bin/python experiment_bpe_crossing_all_depths.py \
-    --outputs-dir outputs_layerwise_seed43 \
-    --out        results_bpe_crossing_seed43 \
-    --n-shuffles 5
-```
-
-### Val-only checks
-
-```bash
-# H1/H2 on 150-protein val subset with the raw (original) sequential metric
-.venv/bin/python experiment_val_only_h1h2.py --n-shuffles 5
-
-# H2' on val, using the BPE-corrected inter-token adjacency
-.venv/bin/python experiment_h2prime_valonly.py --n-shuffles 5
-```
-
-### Data-split robustness (SPLIT_SEED)
-
-```bash
-# Full pipeline rerun with a different 150-protein val split (~7 hr)
-SAE_SEED=42 SPLIT_SEED=99 RUN_SUFFIX=_split99 ./run_all.sh all
-
-# Then BPE-crossing on the new ProtGPT2 outputs
-.venv/bin/python experiment_bpe_crossing_all_depths.py \
-    --outputs-dir outputs_layerwise_split99 \
-    --out        results_bpe_crossing_split99 \
-    --n-shuffles 5
-```
-
-### Metric hyperparameter sweep
-
-```bash
-# 9-cell grid: seq_gap_min ∈ {8,12,24} × topk_frac ∈ {0.05,0.10,0.20} (~2.5 hr)
-.venv/bin/python experiment_metric_sweep.py \
-    --outputs-dir outputs_layerwise \
-    --out        results_metric_sweep \
-    --n-shuffles 5
-```
-
-### Overnight robustness chain (split99 + BPE crossing + metric sweep)
-
-```bash
-./run_overnight.sh    # runs sequentially; tee to overnight.log for review
-```
-
-### Residue-level causal comparator — RITA_l (v6 headline)
-
-```bash
-# Smoke test (loads RITA_l ~3 GB from HF on first run; ~30 s if cached)
-.venv/bin/python smoke_test_rita.py
-
-# Single-seed main run (MODEL=rita only; ~1.5 hr on MPS)
-./run_rita.sh
-
-# Full 5-variant robustness package + val-only + 9-cell metric sweep + aggregator
-# (~8 hr on MPS; mirrors the ProtGPT2 overnight chain for ESM-2 vs RITA)
-./run_rita_overnight.sh  2>&1 | tee rita_overnight.log
-```
-
-Produces `analysis_results_rita{,_seed43,_seed44,_k128,_split99}/comparison/`,
-`analysis_results_valonly_rita/`, `results_metric_sweep_rita/`, and the
-5-run master table `analysis_results_master_rita/`.
-
-### ProtT5 depth densification — H2 (paper §4.3 / Appendix H)
-
-Builds the **9-depth grid** `{0, 3, 6, 9, 12, 15, 18, 21, 23}` for ProtT5 enc and dec, used to localise the encoder-vs-decoder structural-locality crossover (paper Figure 1 caption / §4.3 reports the crossover at ~42% relative depth, between L9 and L12). Originally an extension over an earlier 5-point grid; **9 depths is now the paper's default** for H2. The de-risk gate trains ProtT5-dec layer 9 first to confirm val_EV and mean struct_delta fit smoothly before committing to the remaining 7 SAEs.
-
-```bash
-./run_prott5_densify.sh  2>&1 | tee prott5_densify.log
-```
-
-Produces `analysis_results/comparison/H3_enc_vs_dec_dense.{csv,png,pdf,txt}` with per-layer enc-vs-dec Cohen's d for both `struct_delta` and `seq_delta` and a linearly-interpolated zero-crossing marker. (File names retain "H3" prefix for backwards-compatibility with v5 artefacts; the paper now calls this H2.)
-
-### ESM-2 + RITA within-model trajectories — Appendix G
-
-Builds the 9-depth grid for the within-model L_struct trajectory analysis (paper Appendix G, Figure 2, Table 8). ESM-2: `{0,4,8,12,16,20,24,28,32}` (9 layers). RITA: `{0,3,6,9,12,15,18,21,23}` (9 layers). Reports per-layer mean `struct_delta` with bootstrap 95% CI across features (1000 resamples). De-risk gate trains ESM-2 layer 12 first.
-
-```bash
-./run_esm_rita_densify.sh  2>&1 | tee esm_rita_densify.log
-```
-
-Produces `analysis_results/comparison/H5_within_model_dense.{csv,png,pdf,txt}`. (File name retains "H5" prefix for backwards-compatibility with the v5 hypothesis numbering; the v6 paper reports these as the within-model depth trajectories of Appendix G, not as a numbered hypothesis.)
-
-### Per-model layer-list env-var overrides
-
-The densification experiments use four env vars that override the
-default 9-depth matched-depth plan without editing source:
-
-```bash
-ESM2_LAYERS="0,4,8,12,16,20,24,28,32"        MODEL=esm2      ./run_all.sh esm2
-RITA_LAYERS="0,3,6,9,12,15,18,21,23"          MODEL=rita      ./run_all.sh rita
-PROTT5_ENC_LAYERS="0,3,6,9,12,15,18,21,23"    MODEL=prott5_enc ./run_all.sh prott5_enc
-PROTT5_DEC_LAYERS="0,3,6,9,12,15,18,21,23"    MODEL=prott5_dec ./run_all.sh prott5_dec
-```
-
-Existing layer directories with `META.json` skip at the per-layer level, so
-only the new layers re-train; no retraining of committed SAEs.
-
-### Preflight check (30 s)
-
-```bash
-.venv/bin/python experiment_preflight.py
-```
-
-Validates that cache files, layer outputs, META.val_uids, ProtGPT2 BPE round-trip, and the matched-depth pairs are in place before committing overnight compute.
-
-### Smoke test
-
-```bash
-.venv/bin/python smoke_test.py
-```
-
-## Environment Variables
-
-| Variable | Default | Used by | Description |
-|---|---|---|---|
-| `DEVICE` | auto-detect | `run_all.sh`, `run_unsupervised.py` | Compute device: `cuda`, `mps`, or `cpu` |
-| `MODEL` | `all` | `run_all.sh`, `run_unsupervised.py` | Which PLM(s): `esm2`, `protgpt2`, `prott5_enc`, `prott5_dec`, `rita`, or `all` |
-| `SAE_SEED` | `42` | `run_all.sh`, `run_unsupervised.py` | SAE weight initialization seed |
-| `K_SPARSE` | `256` | `run_all.sh`, `run_unsupervised.py` | Number of active latents per token |
-| `EXPANSION` | `8` | `run_all.sh`, `run_unsupervised.py` | SAE expansion factor (hidden_dim = input_dim x expansion) |
-| `RUN_SUFFIX` | `""` | `run_all.sh`, `run_unsupervised.py` | Output directory suffix (e.g., `_seed43`, `_k128`) |
-| `SPLIT_SEED` | `42` | `run_unsupervised.py` | Protein-level 90/10 train/val split seed. Override to probe robustness to protein subset (set RUN_SUFFIX so outputs don't clobber the main run) |
-| `ESM2_LAYERS` | `0,8,16,24,32` (5-pt) | `run_unsupervised.py` | Comma-sep ESM-2 layer list. Source default is 5 depths; the paper's 9-depth main grid is set by `run_esm_rita_densify.sh` to `0,4,8,12,16,20,24,28,32`. |
-| `RITA_LAYERS` | `0,6,12,18,23` (5-pt) | `run_unsupervised.py` | Comma-sep RITA layer list. Source default is 5 depths; the paper's 9-depth main grid is set by `run_esm_rita_densify.sh` to `0,3,6,9,12,15,18,21,23`. |
-| `PROTT5_ENC_LAYERS` | `0,6,12,18,23` (5-pt) | `run_unsupervised.py` | Comma-sep ProtT5-enc layer list. Source default is 5 depths; the paper's 9-depth main grid is set by `run_prott5_densify.sh` to `0,3,6,9,12,15,18,21,23`. |
-| `PROTT5_DEC_LAYERS` | `0,6,12,18,23` (5-pt) | `run_unsupervised.py` | Comma-sep ProtT5-dec layer list. Source default is 5 depths; the paper's 9-depth main grid is set by `run_prott5_densify.sh` to `0,3,6,9,12,15,18,21,23`. |
-| `SAE_BATCH` | `4096` | `train_sae.py` | SAE training batch size (MPS) |
-| `SAE_CPU_BATCH` | `4096` | `train_sae.py` | SAE training batch size (CPU, >= 8 cores) |
-| `ESM2_BATCH` | `32` | `extract_embeddings.py` | ESM-2 inference batch size (MPS) |
-| `PROTT5_BATCH` | `4` | `extract_embeddings.py` | ProtT5 inference batch size (MPS) |
-| `PROTGPT2_BATCH` | `16` | `extract_embeddings.py` | ProtGPT2 inference batch size (MPS) |
-| `RITA_BATCH` | `12` | `extract_embeddings.py` | RITA inference batch size (MPS) |
-| `CPU_STAGE_MEM_GB` | `100` | `cpu_stage.py` | Memory budget for parallel workers (GB) |
-| `SAE_PRECISION` | `fp32` | `train_sae.py` | Override to `fp16` for MPS (not recommended) |
-
-## Output Directory Structure
+## Data layout
 
 ```
-outputs_layerwise{RUN_SUFFIX}/
-  {esm2,protgpt2,prott5_enc,prott5_dec}/
-    META.json                        # Model-level metadata
-    layer_{N}/
-      Z.npy                          # SAE activations (N_tokens x hidden_dim, fp16)
-      D.npy                          # Decoder dictionary (hidden_dim x input_dim, fp16)
-      sae_model.pt                   # Trained SAE state dict
-      META.json                      # Per-layer metadata (train/val EV, gap, norm_scale, seed)
-      lengths.npy                    # Per-protein token counts (BPE for ProtGPT2, residue for others)
-      offsets.npy                    # Cumulative token offsets
-      uids.json                     # Protein identifiers
-      sequences.json                # Protein sequences
-      struct_seq_metrics.csv         # Per-feature structural/sequential locality scores
-      feature_interpretability.csv   # Per-feature correlations with helix/strand/burial
-      fold_enrichment.csv            # SCOPe fold enrichment per feature
-      topk_sensitivity_sweep.csv     # Sensitivity to activation threshold
-      plot_struct_seq.png            # Structural vs sequential locality scatter
-      umap_decoder_dual.png          # UMAP of decoder dictionary (cosine + euclidean)
-      umap_activations_{cosine,euclidean}.png  # UMAP of residue activations
+outputs_layerwise/              # Main SAEs (seed 42): esm2, rita, prott5_enc, prott5_dec, protgpt2
+outputs_layerwise_seed{43,44}/  # Multi-seed robustness
+outputs_layerwise_newpair/      # ProtBert-BFD + ProGen2 extension
+outputs_random/                 # Random PLM weights (weight_seed=0)
+outputs_random_weightseed{1,2}/ # Additional weight-init seeds (headline L16)
 
-analysis_results{RUN_SUFFIX}/
-  comparison/
-    hypothesis_report.txt            # Full H1-H5 hypothesis test report
-    H1_H2_all_depths.csv             # Per-depth H1/H2 effect sizes
-    H3_interpretability.csv          # H3 interpretability comparison
-    H3_thresholds.csv                # H3 sensitivity at q in {0.05, 0.01, 0.001, 1e-4, 1e-6}
-    H4_enc_vs_dec.csv                # H4 ProtT5 encoder vs decoder
-    H5_depth_trends.csv              # H5 per-feature depth Spearman
-    master_summary.csv               # Per-(model,layer) summary statistics
-    paper_table.csv                  # Publication-ready summary table
-    H1_structural_main.{png,pdf}     # Main-text structural locality figure
-    H1_H2_means_with_SD.{png,pdf}    # H1+H2 means with SD bands
-    H1_all_models_structural.{png,pdf}  # All 4 models structural comparison
-    H3_interpretability.png          # H3 bar chart
-    H4_enc_vs_dec.png                # H4 layer-wise panel
-    H5_depth_trends.png              # H5 depth profiles
-    heatmap_{struct,seq,interp}.png  # Cross-model heatmaps
-
-analysis_results_multiseed/
-  cross_seed_summary.csv             # Per-layer EV mean +/- std across seeds
-  cross_seed_h1h2_summary.csv        # H1/H2 Cohen's d mean +/- std across seeds
-  cross_seed_struct_seq.csv          # Struct/seq deltas per seed
-  cross_seed_meta.csv                # Raw per-seed per-layer EVs
-
-analysis_results/
-  ablation_k_sparse.{csv,png,pdf}    # k_sparse ablation (k in {64, 128, 256})
-  ablation_expansion.{csv,png,pdf}   # Expansion factor ablation (4x, 8x, 16x, 32x)
-
-results_clamping_esm2_l16/
-  clamping_summary.csv               # Baseline/ablation/amplification precision
-  clamping_per_protein.csv           # Per-protein precision under each condition
-  clamping_results.{png,pdf}         # Box plot + paired-difference violin
-  target_features.csv                # Top-10 structural features used for intervention
+results_concept_f1/             # E0 concept alignment
+results_probe/                  # E1 linear probes
+results_causal/                 # E2 ablation
+results_steering_sweep/         # E3 steering (null)
+results_null/                   # E4 graph nulls
+results_concept_f1_multiseed_headline/  # Symmetric trained vs random Concept-F1
+results_joint_sweep/            # k × expansion grid
+analysis_results/               # Workshop hypothesis tables + figures
+analysis_results_multiseed/     # Cross-seed aggregates
+outputs_robustness/             # Bootstrap CSVs, paper-revision tables
 ```
 
-## File Descriptions
+Per layer: `Z.npy`, `D.npy`, `sae_model.pt`, `META.json`, `struct_seq_metrics.csv`, …  
+Ignore `outputs_layerwise/progen2` — leftover from a removed model.
 
-### Core Pipeline
-| File | Description |
-|---|---|
-| `run_all.sh` | End-to-end orchestrator: dataset build -> GPU stage -> CPU stage -> hypothesis tests |
-| `build_dataset.py` | Downloads SCOPe proteins, filters by length/coverage, extracts DSSP labels |
-| `extract_embeddings.py` | Extracts hidden states from ESM-2, ProtGPT2, ProtT5-enc, ProtT5-dec, RITA_l at specified layers |
-| `sae.py` | TopK Sparse Autoencoder model (encoder, decoder, AuxK loss, dead-latent tracking) |
-| `train_sae.py` | SAE training loop with mixed precision, hardware auto-config, explained variance computation |
-| `run_unsupervised.py` | GPU stage driver: loads dataset, protein-level split, trains SAEs per layer, computes holdout EV |
-| `cpu_stage.py` | Structural analysis: feature-structure correlations, locality metrics, fold enrichment, UMAPs |
-| `analyze_hypotheses.py` | Cross-model hypothesis testing (H1-H5) with depth matching and publication figures |
+---
 
-### Ablation & Supplementary
-| File | Description |
-|---|---|
-| `ablation_k.py` | k_sparse ablation on ESM-2 layer 16 (Appendix A) |
-| `ablation_expansion.py` | Expansion factor sweep with fixed-k and matched-density strategies (Appendix B) |
-| `aggregate_seeds.py` | Combines multi-seed (42, 43, 44) runs into cross-seed mean +/- std summaries |
-| `experiment_activation_clamping.py` | Causal intervention: ablate/amplify top SAE features during ESM-2 forward pass |
-| `subsample_dataset.py` | Deterministic fold-stratified subsampling from full SCOPe to N proteins |
+## Figures
 
-### Paper revision (May 2026): bootstrap CIs and paper-revision tables
-Addresses the eight reviewer items raised pre-submission. All point estimates
-verified against the paper's published Table 1 / `bootstrap_h1_*` values
-(exact match where overlap exists). All bootstrap CIs are normal-approximation
-`d_point ± 1.96·boot_sd`, B=1000, protein-level cluster bootstrap.
+| Audience | Location |
+|----------|----------|
+| **Workshop / poster** | `paper_draft/paper_submission-4/figures/` — `h1_locality_dist_sideways.*`, `poster_concept_f1_depth.*`, `poster_controls.*`, `poster_lens_independence.*` |
+| **Main pipeline** | `analysis_results/comparison/` — `H1_structural_main.*`, heatmaps, H2 densification plots |
+| **Extension qual.** | `results_feature_viz/` (sample structures) |
 
-| File | Description |
-|---|---|
-| `outputs_robustness/compute_cis_v2.py` | Paired ESM-2 vs RITA + ProtT5 enc-vs-dec bootstrap; 5 active-mask variants (top-decile struct, top-decile seq, struct@0.5/1/2 ×s) per cell, partial-CSV checkpointing each depth. Threaded via OMP/MKL. |
-| `outputs_robustness/compute_cis_v3_optimized.py` | Val-only sweep CIs at Cα cutoffs {6, 10} Å and sequence windows ±{1, 4}. Two key optimisations: batched bootstrap (one big `W @ contribs` matmul instead of 1000 small ones, ≈100× speedup; built-in correctness test asserts max-abs error <1e-15 vs explicit loop), and shared sigma/percentile/active-mask across the four adjacency variants for a given (model, layer). |
-| `make_within_model_trajectory_plot.py` | Renders Figure 2 (Appendix G): mean L_struct vs depth for all four PLMs with bootstrap CI bands, from `v2_cis_trajectory.csv`. ICML Type-42 fonts. |
-| `outputs_robustness/PAPER_REVISION_SUMMARY.md` | Master document — full tables for all 8 items with sources and per-cell numbers. Paper-pasteable. |
+---
 
-CSVs produced (small, paper-quotable):
+## Limitations and open work (arXiv summer)
 
-| File | Reviewer item | Rows |
-|---|---|---|
-| `bootstrap_h1_corrected_cis.csv` | 1: H1 bootstrap CI fix (Table 15) | 18 |
-| `v2_cis_pair_pt5.csv` | 2: ProtT5 enc-vs-dec H2 CIs | 36 |
-| `v3opt_cis_val_sweeps.csv` | 3: val cutoff + window CIs | 72 |
-| `v2_cis_pair_esm_rita.csv` | 4 + 5: threshold sensitivity + L_seq with CIs | 90 |
-| `Lseq_esm_rita.csv`, `prott5_enc_vs_dec.csv` | 5 + 2 (point estimates only) | 9 + 9 |
-| `sae_val_ev_table.csv` | 6: RITA-l SAE val EV | 9 |
-| `cross_seed_sd_table7.csv` | 7: cross-seed SD per depth | 10 |
-| `sweep_significance_markers.csv` | 8: per-cell ✓/✗ for cutoff and window sweeps | 135 |
-| `interp_appendixC_table.csv` | 9: per-model %Interp at q<0.05 and q<10⁻⁶ | 10 |
-| `v2_cis_trajectory.csv` | within-model L_struct trajectory CIs (4 models × 9 depths) | 36 |
-| `_ITEM2/_ITEM3/_ITEM4_*.csv` | sorted-clean per-item paste-in views | as above |
+1. **Family-level contrast** — ESM-2 vs RITA varies architecture, objective, and pretraining data together; the second pair (ProtBert vs ProGen2) is only **partially** confirmatory (6/9 fold CIs).
+2. **Correlational core** — `L_struct` and concept-F1 are geometric/annotation alignment statistics; steering did not reach significance; ablation effects are small.
+3. **Probe honest negative** — Raw activations decode DSSP labels better than SAE features; the SAE value is monosemanticity and sparse structure, not downstream decoding.
+4. **Single SAE seed for most extensions** — Workshop H1 had seeds {42,43,44}; **concept-F1 headline** now has symmetric SAE seeds 42/43/44 vs random weight seeds 0/1/2. Probe, steering, ablation, etc. remain mostly seed 42.
+5. **Random-weight floor spread** — Weight-init seed 0 gives concept-F1 **0.12**; seeds 1/2 **~0.40** (high variance across inits). Trained mean **0.71** stays well above random mean **0.30**.
+6. **Not done:** cross-attention analysis, LLM auto-interp, supervised contact readout for E2, aggregated 4-panel cross-model figure, full arXiv prose.
 
-### Post-submission robustness scripts
-| File | Description |
-|---|---|
-| `experiment_bpe_correction.py` | Single-layer BPE intra-token exclusion for ProtGPT2 L_seq (the inter-token control of paper §4.2; previously called "H2′") |
-| `experiment_bpe_crossing_all_depths.py` | Wrapper: runs the above at all 5 matched depths and aggregates the inter-token L_seq |
-| `experiment_val_only_h1h2.py` | Recomputes H1 and L_seq on the 150-protein val subset (residue-projection metric) |
-| `experiment_h2prime_valonly.py` | Recomputes the inter-token L_seq on val, using the existing ESM-2 val CSV |
-| `experiment_metric_sweep.py` | Joint sweep over `seq_gap_min` × `topk_frac` grid, with H1/H2′ per cell |
-| `experiment_preflight.py` | 30 s sanity check for all cached artifacts before committing overnight compute |
-| `experiment_expanded_annotations.py` | (Limitation 3) continuous RSA + UniProt functional-site probes |
-| `experiment_stability.py` | (Limitations 1 + 5) cross-seed decoder cosine similarity + depth interpolation |
-| `run_h2_robustness.sh` | Runs BPE-crossing on the 3 existing non-main runs (seed43/44/k128) |
-| `run_overnight.sh` | Sequential chain: split99 full pipeline → BPE crossing on split99 → metric sweep |
+Principles: convergent evidence, explicit controls (shuffled graph, random weights, random features), protein/fold-cluster bootstrap, val→test for threshold selection — see `.cursor/rules/experimental-rigor.mdc`.
 
-### Residue-level causal comparator scripts (v6)
-| File | Description |
-|---|---|
-| `experiment_h1h2_rita.py` | Clean H1/H2 test: ESM-2 vs RITA at 5 matched depths (no BPE correction needed) |
-| `experiment_val_only_rita.py` | H1/H2 on the 150-protein val subset for ESM-2 vs RITA |
-| `experiment_metric_sweep_rita.py` | 9-cell `seq_gap_min × topk_frac` sweep for ESM-2 vs RITA H1/H2 |
-| `aggregate_rita_robustness.py` | Consolidates the 5-run RITA robustness table (main/seed43/seed44/k128/split99) |
-| `smoke_test_rita.py` | End-to-end RITA integration check (tokenizer 1:1, model load, layer indexing) |
-| `run_rita.sh` | Single-seed RITA pipeline (MODEL=rita only) |
-| `run_rita_overnight.sh` | Full 5-variant robustness chain + val-only + metric sweep + aggregator |
-
-### Densification scripts (v6 appendix)
-| File | Description |
-|---|---|
-| `experiment_prott5_densify_check.py` | De-risk gate for the ProtT5 H3 densification (ProtT5-dec L9 val_EV + smoothness check) |
-| `experiment_prott5_densify_analysis.py` | H3 enc-vs-dec on 9 probes per side; finds crossover, writes `H3_enc_vs_dec_dense.{csv,png,pdf,txt}` |
-| `run_prott5_densify.sh` | Orchestrator: de-risk → gate → full dec → full enc → analysis + plot |
-| `experiment_esm_rita_densify_check.py` | De-risk gate for the ESM-2/RITA H5 densification (ESM-2 L12) |
-| `experiment_esm_rita_densify_analysis.py` | Bootstrap 95% CI on mean `struct_delta` per layer; writes `H5_within_model_dense.{csv,png,pdf,txt}` |
-| `run_esm_rita_densify.sh` | Orchestrator: de-risk → gate → full ESM-2 → full RITA → analysis + plot |
-
-### Utilities
-| File | Description |
-|---|---|
-| `smoke_test.py` | Fast offline verification: tests helpers, SAE training on synthetic data, H5 path, CLI surfaces |
-| `draft_paper.py` | Generates the workshop paper draft as a Word .docx file |
-| `requirements.txt` | Frozen pip dependencies (Python 3.12, PyTorch 2.11, transformers 5.5) |
-
-### Cached Data (tracked)
-| File | Description |
-|---|---|
-| `cache/sequences.json` | 1,500 subsampled protein sequences (uid -> sequence dict) |
-| `cache/residue_features.csv` | Per-residue DSSP labels + burial counts (295,240 rows) |
-| `cache/scope_40.fa` | SCOPe 2.08 FASTA with fold annotations |
-| `cache/dataset_summary.json` | Dataset statistics (N proteins, folds, length distribution) |
-
-## SAE Hyperparameters
-
-| Parameter | Value | Justification |
-|---|---|---|
-| Expansion factor | 8x | Ablation over {4, 8, 16, 32}x; 8x balances reconstruction and interpretability |
-| k_sparse | 256 | Ablation over {64, 128, 256}; 256 achieves smallest holdout EV gap (0.092) |
-| k_aux | 64 | Auxiliary loss for dead-latent recovery |
-| Dead threshold | 1,000,000 tokens | ~4 epochs at 265k train tokens |
-| Learning rate | 5e-5 | Cosine decay to 5e-6 over 60 epochs |
-| Batch size | 4096 | Auto-tuned per device |
-| Input normalization | Bricken (mean L2 -> sqrt(D)) | Required: PLM outlier features destabilize SAE training without it |
-| Decoder constraint | Unit L2 norm per column | Re-normalized after each optimizer step |
-| Tied initialization | Encoder = Decoder^T | Using `param.copy_()` (not `param.data =`, which breaks MPS) |
-
-## Known Issues
-
-- **MPS `.data =` bug**: PyTorch's MPS backend silently corrupts `nn.Linear` forward outputs when `Parameter.data` is reassigned to a new tensor (the deprecated `param.data = new_tensor` pattern). The Parameter reads back as bit-identical to CPU, but `F.linear` produces wrong results (~70 unit max diff). Fixed by using `param.copy_(new_tensor)` throughout `sae.py`.
-- **Activation clamping on MPS**: The intervention hook mixes fp16 (ESM-2 model) with fp32 (SAE model) tensors, triggering an MPS matmul dtype assertion. Use `--device cpu` as a workaround.
-- **PLM outlier features**: ESM-2/ProtGPT2/ProtT5 hidden states have outlier dimensions with magnitudes 50-100x the typical scale (cf. Dettmers et al., 2022). Without Bricken normalization, SAE training diverges (negative EV, loss U-curves).
-- **RITA fp16 checkpoint**: transformers 5.x honours the checkpoint's saved dtype by default, and RITA_l ships fp16. Its custom attention code upcasts softmax to fp32 for numerical stability, producing an `att @ v` dtype mismatch (raises on CPU, silently NaNs middle blocks on MPS). `extract_rita_embeddings` loads with `torch_dtype=torch.float32` and `.float()` to force fp32 end-to-end.
-- **RITA L3 high EV**: the H5 densification adds RITA layer 3, where val_EV = 0.9989. RITA SAE bases are cross-seed stable elsewhere, but single-seed L3 sits in a high-EV regime where the SAE basis is not uniquely identified. Aggregate `mean(struct_delta)` with 12k-feature bootstrap CI is robust, but feature-level claims at L3 should be cross-seed-verified before citing.
-- **ProtT5 `H3_enc_vs_dec` vs `H4` naming**: the v5 paper labelled this "H4" (in `analyze_hypotheses.py` and `H4_enc_vs_dec.csv`); v6 reframes it as "H3" following the post-submission hypothesis numbering. The densified output is written to `H3_enc_vs_dec_dense.*` and lives alongside the v5 `H4_enc_vs_dec.*` rather than replacing it.
+---
 
 ## Citation
 
-If you use this code, please cite:
-
-```
-@inproceedings{anonymous2026sae-plm,
-  title={Sparse Autoencoders Reveal How Training Objectives Shape Structural Representations in Protein Language Models},
-  author={Anonymous},
+```bibtex
+@inproceedings{anonymous2026structural-locality,
+  title={Structural Locality Differentiates Residue-Tokenised Bidirectional and Causal Protein Language Model Families},
   booktitle={ICML 2026 Workshop on Mechanistic Interpretability},
   year={2026}
 }
 ```
+
+---
+
+## For developers
+
+- **Authoritative status & audit:** [`PROJECT_STATUS.md`](PROJECT_STATUS.md) (§11 = latest session)
+- **Quick agent snapshot:** [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md)
+- **Paper-revision tables:** `outputs_robustness/PAPER_REVISION_SUMMARY.md`
