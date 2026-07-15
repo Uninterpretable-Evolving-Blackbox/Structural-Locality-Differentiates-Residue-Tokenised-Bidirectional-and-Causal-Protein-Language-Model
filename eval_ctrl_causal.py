@@ -56,7 +56,10 @@ def attribute(model, sae, ns, ids, am, layer, causal, mask_id, rng):
         prob[(am == 0) | (ids == BOS) | (ids == EOS)] = 0
         sel = torch.bernoulli(prob).bool()
         if sel.sum() == 0:
-            sel[am.bool()][0] = True
+            # bernoulli can draw all-zero; force one eligible (prob>0) token.
+            # boolean advanced-indexing returns a copy, so index sel directly.
+            nz = (prob > 0).nonzero(as_tuple=False)
+            sel[nz[0, 0], nz[0, 1]] = True
         labels = torch.where(sel, ids, torch.full_like(ids, -100))
         inp = ids.clone(); inp[sel] = mask_id
     else:            # CLM: next-token
