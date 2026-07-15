@@ -37,11 +37,18 @@ from cpu_stage import (
     build_neighbor_graphs_residue_parallel,
     adj_list_to_sparse, build_protein_permutations,
 )
+from cluster_bootstrap import clusters_for_uids, make_cluster_weights, cluster_stats
 
 N_BOOT = 1000
 N_SHUF = 5
 TOPK_FRAC = 0.10
 SEED = 42
+# Cluster bootstrap controls (env-var driven). CLUSTER_LEVEL=fold (default) ->
+# honest SCOPe-fold-clustered CIs; =protein -> original protein-level bootstrap.
+CLUSTER_LEVEL = os.environ.get("CLUSTER_LEVEL", "fold")
+CLUSTER_TWO_STAGE = os.environ.get("CLUSTER_TWO_STAGE", "1") == "1"
+FASTA = ROOT / "cache/scope_40.fa"
+SFX = "" if CLUSTER_LEVEL == "protein" else f"_{CLUSTER_LEVEL}"
 
 DEPTHS_ER = [
     ("0",   0,  0), ("13",  4,  3), ("25",  8,  6),
@@ -251,8 +258,14 @@ def main():
 
     rng = np.random.default_rng(SEED)
     perm_indices = build_protein_permutations(res_lengths, N_SHUF)
-    W_full = make_weights(n_proteins, full_indices, N_BOOT, rng)
-    W_val  = make_weights(n_proteins, val_indices,  N_BOOT, np.random.default_rng(SEED+1))
+    cluster_id = clusters_for_uids(uids, FASTA, level=CLUSTER_LEVEL)
+    cst = cluster_stats(cluster_id, full_indices)
+    log(f"  cluster-level={CLUSTER_LEVEL} ({'two-stage' if CLUSTER_TWO_STAGE else 'one-stage'}): "
+        f"{cst['n_clusters']} clusters / {cst['n_units']} proteins (mean {cst['mean_cluster_size']:.2f})")
+    W_full = make_cluster_weights(n_proteins, cluster_id, full_indices, N_BOOT, rng,
+                                  two_stage=CLUSTER_TWO_STAGE)
+    W_val  = make_cluster_weights(n_proteins, cluster_id, val_indices,  N_BOOT,
+                                  np.random.default_rng(SEED + 1), two_stage=CLUSTER_TWO_STAGE)
 
     # ---- Build all 4 adjacencies up front ----
     adj = {}
@@ -335,7 +348,7 @@ def main():
                 log(f"    {vk:10s} {split:4s}  d_pt={d_pt:+.4f}  batched-boot {time.time()-t:.1f}s")
 
         del caches_for_pair, meta
-        pd.DataFrame(rows).to_csv(OUT/"v3opt_cis_val_sweeps.csv", index=False)
+        pd.DataFrame(rows).to_csv(OUT/f"v3opt_cis_val_sweeps{SFX}.csv", index=False)
         log(f"  → wrote v3opt_cis_val_sweeps.csv ({len(rows)} rows)")
 
     log("\nALL v3-optimized DONE.")

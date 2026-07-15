@@ -31,11 +31,19 @@ from cpu_stage import (
     build_neighbor_graphs_residue_parallel,
     adj_list_to_sparse, build_protein_permutations,
 )
+from cluster_bootstrap import clusters_for_uids, make_cluster_weights, cluster_stats
 
 N_BOOT = 1000
 N_SHUF = 5
 TOPK_FRAC = 0.10
 SEED = 42
+# Cluster bootstrap controls (env-var driven; this script has no argparse).
+# CLUSTER_LEVEL=fold (default) gives honest SCOPe-fold-clustered CIs; =protein
+# reproduces the original paper protein-level bootstrap (canonical filenames).
+CLUSTER_LEVEL = os.environ.get("CLUSTER_LEVEL", "fold")
+CLUSTER_TWO_STAGE = os.environ.get("CLUSTER_TWO_STAGE", "1") == "1"
+FASTA = ROOT / "cache/scope_40.fa"
+SFX = "" if CLUSTER_LEVEL == "protein" else f"_{CLUSTER_LEVEL}"
 
 def log(msg):
     s = f"[{time.strftime('%H:%M:%S')}] {msg}"
@@ -52,6 +60,25 @@ DEPTHS_PT5 = [
     ("0",  0), ("13", 3), ("25", 6), ("38", 9), ("50",12),
     ("63",15), ("75",18), ("88",21), ("100",23),
 ]
+PHASES = {x.strip() for x in os.environ.get("V2_PHASES", "esm_rita,pt5").split(",") if x.strip()}
+DEPTH_FILTER = {x.strip().rstrip("%") for x in os.environ.get("V2_DEPTHS", "").split(",") if x.strip()}
+
+
+def _read_rows(path: Path):
+    if path.exists():
+        return pd.read_csv(path).to_dict("records")
+    return []
+
+
+def _done_depth_pair(rows, pair, label, expected_rows):
+    return sum(1 for r in rows
+               if r.get("pair") == pair and str(r.get("rel_depth", "")).rstrip("%") == label) >= expected_rows
+
+
+def _done_traj_depth(rows, models, label):
+    found = {str(r.get("model")) for r in rows
+             if str(r.get("rel_depth", "")).rstrip("%") == label}
+    return set(models).issubset(found)
 
 
 def cohens_d(a, b):
@@ -246,8 +273,14 @@ def main():
 
     rng = np.random.default_rng(SEED)
     perm_indices = build_protein_permutations(res_lengths, N_SHUF)
-    W_full = make_weights(n_proteins, full_indices, N_BOOT, rng)
-    W_val  = make_weights(n_proteins, val_indices,  N_BOOT, np.random.default_rng(SEED+1))
+    cluster_id = clusters_for_uids(uids, FASTA, level=CLUSTER_LEVEL)
+    cst = cluster_stats(cluster_id, full_indices)
+    log(f"  cluster-level={CLUSTER_LEVEL} ({'two-stage' if CLUSTER_TWO_STAGE else 'one-stage'}): "
+        f"{cst['n_clusters']} clusters / {cst['n_units']} proteins (mean {cst['mean_cluster_size']:.2f})")
+    W_full = make_cluster_weights(n_proteins, cluster_id, full_indices, N_BOOT, rng,
+                                  two_stage=CLUSTER_TWO_STAGE)
+    W_val  = make_cluster_weights(n_proteins, cluster_id, val_indices,  N_BOOT,
+                                  np.random.default_rng(SEED + 1), two_stage=CLUSTER_TWO_STAGE)
     log(f"  weights: full {W_full.shape}, val {W_val.shape}")
 
     log("Building 8 A struct + seq adjacency...")
@@ -260,11 +293,25 @@ def main():
     log(f"  struct edges: {A_struct.nnz:,}  seq edges: {A_seq.nnz:,}  ({time.time()-t0:.1f}s)")
     del struct_adj, seq_adj
 
-    pair_rows = []
-    traj_rows = []
+    pair_path = OUT/f"v2_cis_pair_esm_rita{SFX}.csv"
+    pt5_pair_path = OUT/f"v2_cis_pair_pt5{SFX}.csv"
+    traj_path = OUT/f"v2_cis_trajectory{SFX}.csv"
+    pair_rows = _read_rows(pair_path)
+    pt5_pair_rows = _read_rows(pt5_pair_path)
+    traj_rows = _read_rows(traj_path)
+    if pair_rows or pt5_pair_rows or traj_rows:
+        log(f"  resume: loaded {len(pair_rows)} esm/rita rows, "
+            f"{len(pt5_pair_rows)} pt5 rows, {len(traj_rows)} trajectory rows")
 
     # ───── Phase A: ESM-2 vs RITA ─────
-    for label, e_l, r_l in DEPTHS_ER:
+    for label, e_l, r_l in (DEPTHS_ER if "esm_rita" in PHASES else []):
+        if DEPTH_FILTER and label not in DEPTH_FILTER:
+            log(f"\n=== ESM-2 L{e_l} vs RITA L{r_l}  (depth {label}%) SKIP depth filter ===")
+            continue
+        if (_done_depth_pair(pair_rows, "esm2_vs_rita", label, expected_rows=10)
+                and _done_traj_depth(traj_rows, ["esm2", "rita"], label)):
+            log(f"\n=== ESM-2 L{e_l} vs RITA L{r_l}  (depth {label}%) already complete — skipping ===")
+            continue
         log(f"\n=== ESM-2 L{e_l} vs RITA L{r_l}  (depth {label}%) ===")
 
         log(f"  ESM-2 layer {e_l}:")
@@ -317,13 +364,19 @@ def main():
 
         del c_e, c_r, sig_e, sig_r
         # Save partial after each depth
-        pd.DataFrame(pair_rows).to_csv(OUT/"v2_cis_pair_esm_rita.csv", index=False)
-        pd.DataFrame(traj_rows).to_csv(OUT/"v2_cis_trajectory.csv", index=False)
+        pd.DataFrame(pair_rows).to_csv(pair_path, index=False)
+        pd.DataFrame(traj_rows).to_csv(traj_path, index=False)
         log(f"  → wrote partial CSVs ({len(pair_rows)} pair rows, {len(traj_rows)} traj rows)")
 
     # ───── Phase B: ProtT5 enc vs dec ─────
-    pt5_pair_rows = []
-    for label, L in DEPTHS_PT5:
+    for label, L in (DEPTHS_PT5 if "pt5" in PHASES else []):
+        if DEPTH_FILTER and label not in DEPTH_FILTER:
+            log(f"\n=== ProtT5 enc vs dec L{L}  (depth {label}%) SKIP depth filter ===")
+            continue
+        if (_done_depth_pair(pt5_pair_rows, "pt5_enc_vs_dec", label, expected_rows=4)
+                and _done_traj_depth(traj_rows, ["prott5_enc", "prott5_dec"], label)):
+            log(f"\n=== ProtT5 enc vs dec L{L}  (depth {label}%) already complete — skipping ===")
+            continue
         log(f"\n=== ProtT5 enc vs dec L{L}  (depth {label}%) ===")
         log(f"  ProtT5 enc layer {L}:")
         t_cell = time.time()
@@ -370,8 +423,8 @@ def main():
                 ci_lo=mean_pt - 1.96*sd, ci_hi=mean_pt + 1.96*sd))
 
         del c_e, c_d, sig_e, sig_d
-        pd.DataFrame(pt5_pair_rows).to_csv(OUT/"v2_cis_pair_pt5.csv", index=False)
-        pd.DataFrame(traj_rows).to_csv(OUT/"v2_cis_trajectory.csv", index=False)
+        pd.DataFrame(pt5_pair_rows).to_csv(pt5_pair_path, index=False)
+        pd.DataFrame(traj_rows).to_csv(traj_path, index=False)
         log(f"  → wrote partial CSVs ({len(pt5_pair_rows)} pt5 rows, {len(traj_rows)} traj rows)")
 
     log("\nALL DONE.")

@@ -54,11 +54,14 @@ from cpu_stage import (
     build_neighbor_graphs_residue_parallel,
     adj_list_to_sparse, build_protein_permutations,
 )
+from cluster_bootstrap import (
+    clusters_for_uids, make_cluster_weights, design_effect, cluster_stats,
+)
 
 OUT = ROOT / "outputs_robustness"
 OUT.mkdir(parents=True, exist_ok=True)
 
-MATCHED_PAIRS = [
+MATCHED_PAIRS_ESM_RITA = [
     ("0",     0,   0),
     ("13",    4,   3),
     ("25",    8,   6),
@@ -70,10 +73,55 @@ MATCHED_PAIRS = [
     ("100",   32, 23),
 ]
 
+# Pre-registered 9-depth grids for the additional bidirectional/causal pair
+# (ProtBert-BFD 30 blocks, ProGen2-base 27 blocks; same relative-depth matching).
+MATCHED_PAIRS_PROTbert_PROGEN2 = [
+    ("0",     0,   0),
+    ("13",    4,   3),
+    ("25",    7,   6),
+    ("38",    11,  10),
+    ("50",    14,  13),
+    ("63",    18,  16),
+    ("75",    22,  20),
+    ("88",    25,  23),
+    ("100",   29,  26),
+]
+
+MATCHED_PAIRS_CTRL = [
+    ("0", 0, 0), ("25", 3, 3), ("50", 6, 6), ("75", 9, 9), ("100", 11, 11),
+]
+
+PAIR_PRESETS = {
+    "ctrl": dict(
+        model_a="ctrl_mlm_A", model_b="ctrl_clm_A",
+        output_root="outputs_ctrl",
+        matched_pairs=MATCHED_PAIRS_CTRL,
+        out_stem="bootstrap_h1_ctrl",
+    ),
+    "esm_rita": dict(
+        model_a="esm2", model_b="rita",
+        output_root="outputs_layerwise",
+        matched_pairs=MATCHED_PAIRS_ESM_RITA,
+        out_stem="bootstrap_h1",
+    ),
+    "protbert_progen2": dict(
+        model_a="protbert_bfd", model_b="progen2",
+        output_root="outputs_layerwise_newpair",
+        matched_pairs=MATCHED_PAIRS_PROTbert_PROGEN2,
+        out_stem="bootstrap_h1_newpair",
+    ),
+}
+
+# Back-compat alias
+MATCHED_PAIRS = MATCHED_PAIRS_ESM_RITA
+
 N_BOOT = 1000
 N_SHUF = 5
 TOPK_FRAC = 0.10
-MIN_ACTIVE = 5     # set to 0 via --no-min-active to disable
+MIN_ACTIVE = 0     # 0 = no filter; reproduces the paper's committed bootstrap CIs.
+                   # >0 (via --min-active N) drops (protein,feature) pairs with fewer
+                   # than N active residues. NOTE: the committed paper CSVs were made
+                   # with 0; the previous default of 5 did NOT reproduce them.
 
 
 def cohens_d(a, b):
@@ -217,20 +265,41 @@ def run_bootstrap(c_esm, c_rita, weights):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--preset", choices=sorted(PAIR_PRESETS), default="esm_rita",
+                    help="model pair preset: esm_rita (paper H1) or protbert_progen2")
     ap.add_argument("--n-boot", type=int, default=N_BOOT)
     ap.add_argument("--depths", type=str, default="all",
                     help="comma-separated subset of depth labels, or 'all'")
     ap.add_argument("--min-active", type=int, default=MIN_ACTIVE,
                     help="drop (protein, feature) pairs with fewer than this many active residues")
+    ap.add_argument("--cluster-levels", default="fold,protein",
+                    help="comma-separated resampling units from {protein,fold,superfamily,family}; "
+                         "all are computed in ONE run sharing the (expensive) adjacency build. "
+                         "'protein' reproduces the original paper bootstrap for direct comparison.")
+    ap.add_argument("--two-stage", dest="two_stage", action="store_true", default=True,
+                    help="hierarchical resample: clusters, then proteins within each cluster")
+    ap.add_argument("--one-stage", dest="two_stage", action="store_false",
+                    help="resample whole clusters only (between-cluster variance)")
+    ap.add_argument("--fasta", default=str(ROOT / "cache/scope_40.fa"),
+                    help="SCOPe FASTA providing the fold/superfamily clustering key")
     args = ap.parse_args()
 
+    preset = PAIR_PRESETS[args.preset]
+    model_a = preset["model_a"]
+    model_b = preset["model_b"]
+    output_root = ROOT / preset["output_root"]
+    matched_pairs = preset["matched_pairs"]
+    out_stem = preset["out_stem"]
+
     print("=" * 72)
-    print("  H1 protein-level cluster bootstrap (Task 1)")
-    print(f"  N_BOOT={args.n_boot}  N_SHUF={N_SHUF}  TOPK_FRAC={TOPK_FRAC}")
+    print(f"  H1 cluster bootstrap — preset={args.preset}")
+    print(f"  {model_a} (bidirectional) vs {model_b} (causal)")
+    print(f"  N_BOOT={args.n_boot}  N_SHUF={N_SHUF}  TOPK_FRAC={TOPK_FRAC}  "
+          f"min_active={args.min_active}")
     print("=" * 72)
 
     # ---- Load shared structure ----
-    layer0_dir = ROOT / "outputs_layerwise/esm2/layer_0"
+    layer0_dir = output_root / f"{model_a}/layer_0"
     print("\nLoading shared protein metadata + structural adjacency...")
     Z0, uids, lengths = load_layer(layer0_dir)
     res_lengths = lengths.astype(np.int32)
@@ -256,97 +325,113 @@ def main():
     perm_indices = build_protein_permutations(res_lengths, N_SHUF)
     print(f"  adjacency: {A_struct.nnz:,} edges  ({time.time()-t0:.0f}s)")
 
-    # ---- Boot weights (shared across layers) ----
-    rng = np.random.default_rng(42)
-    boot_w_full = make_boot_weights(n_proteins, full_indices, args.n_boot, rng)
-    boot_w_val  = make_boot_weights(n_proteins, val_indices,  args.n_boot, rng)
-    print(f"  bootstrap weight matrices built: full={boot_w_full.shape}, val={boot_w_val.shape}")
+    # ---- Cluster assignments + boot weights PER LEVEL (shared across layers) ----
+    ALLOWED = {"protein", "fold", "superfamily", "family"}
+    levels = [x.strip() for x in args.cluster_levels.split(",") if x.strip()]
+    bad = [lv for lv in levels if lv not in ALLOWED]
+    if bad:
+        raise SystemExit(f"unknown cluster level(s) {bad}; allowed {sorted(ALLOWED)}")
+    cluster_ids, boot_w_full, boot_w_val = {}, {}, {}
+    for lvl in levels:
+        cid = clusters_for_uids(uids, args.fasta, level=lvl)
+        cst = cluster_stats(cid, full_indices)
+        print(f"  cluster-level={lvl} ({'two-stage' if args.two_stage else 'one-stage'}): "
+              f"{cst['n_clusters']} clusters / {cst['n_units']} proteins "
+              f"(mean {cst['mean_cluster_size']:.2f}, max {cst['max_cluster_size']})")
+        rng_l = np.random.default_rng(42)
+        cluster_ids[lvl] = cid
+        boot_w_full[lvl] = make_cluster_weights(n_proteins, cid, full_indices, args.n_boot, rng_l,
+                                                two_stage=args.two_stage)
+        boot_w_val[lvl]  = make_cluster_weights(n_proteins, cid, val_indices, args.n_boot, rng_l,
+                                                two_stage=args.two_stage)
 
     # ---- Process each depth pair ----
     if args.depths == "all":
-        pairs = MATCHED_PAIRS
+        pairs = matched_pairs
     else:
         wanted = set(args.depths.split(","))
-        pairs = [p for p in MATCHED_PAIRS if p[0] in wanted]
+        pairs = [p for p in matched_pairs if p[0] in wanted]
     print(f"\n  Will process {len(pairs)} depth pairs: {[p[0]+'%' for p in pairs]}")
 
     rows_full, rows_val = [], []
     sd_per_depth_full = {}  # depth -> (B,) bootstrap d trace, full
     sd_per_depth_val  = {}  # ditto, val
 
-    for label, esm_l, rita_l in pairs:
-        print(f"\n--- depth {label}%: ESM-2 L{esm_l} vs RITA L{rita_l} ---")
+    for label, layer_a, layer_b in pairs:
+        print(f"\n--- depth {label}%: {model_a} L{layer_a} vs {model_b} L{layer_b} ---")
         t0 = time.time()
-        c_esm = per_protein_contributions(
-            ROOT / f"outputs_layerwise/esm2/layer_{esm_l}",
+        c_a = per_protein_contributions(
+            output_root / f"{model_a}/layer_{layer_a}",
             A_struct, deg_struct, perm_indices,
             protein_offsets, n_res_total)
-        print(f"  ESM-2 contributions: {time.time()-t0:.0f}s")
+        print(f"  {model_a} contributions: {time.time()-t0:.0f}s")
         t1 = time.time()
-        c_rita = per_protein_contributions(
-            ROOT / f"outputs_layerwise/rita/layer_{rita_l}",
+        c_b = per_protein_contributions(
+            output_root / f"{model_b}/layer_{layer_b}",
             A_struct, deg_struct, perm_indices,
             protein_offsets, n_res_total)
-        print(f"  RITA  contributions: {time.time()-t1:.0f}s")
+        print(f"  {model_b} contributions: {time.time()-t1:.0f}s")
 
         if args.min_active > 0:
-            apply_active_filter(c_esm,  min_active=args.min_active)
-            apply_active_filter(c_rita, min_active=args.min_active)
+            apply_active_filter(c_a, min_active=args.min_active)
+            apply_active_filter(c_b, min_active=args.min_active)
 
-        # Point estimates (full data)
+        # Point estimates (clustering-independent; computed once per depth)
         w_full = np.ones(n_proteins, dtype=np.int32)
-        sd_e_full  = struct_delta_under_weights(c_esm,  w_full)
-        sd_r_full  = struct_delta_under_weights(c_rita, w_full)
-        d_full_pt  = cohens_d(sd_e_full, sd_r_full)
+        d_full_pt = cohens_d(struct_delta_under_weights(c_a, w_full),
+                             struct_delta_under_weights(c_b, w_full))
+        w_val_pt = np.zeros(n_proteins, dtype=np.int32); w_val_pt[val_indices] = 1
+        d_val_pt = cohens_d(struct_delta_under_weights(c_a, w_val_pt),
+                            struct_delta_under_weights(c_b, w_val_pt))
+        # Per-protein L_struct summary for the design effect (clustering-independent).
+        _am = np.where(c_a["obs_active_cnt"] > 0,
+                       c_a["obs_active_sum"] / np.maximum(c_a["obs_active_cnt"], 1), 0.0)
+        _gm = c_a["obs_global_sum"] / np.maximum(c_a["n_residues"][:, None], 1.0)
+        _per_prot = ((_am - _gm) / c_a["sigma_j"][None, :]).mean(axis=1)
 
-        w_val_pt = np.zeros(n_proteins, dtype=np.int32)
-        w_val_pt[val_indices] = 1
-        sd_e_val  = struct_delta_under_weights(c_esm,  w_val_pt)
-        sd_r_val  = struct_delta_under_weights(c_rita, w_val_pt)
-        d_val_pt  = cohens_d(sd_e_val, sd_r_val)
+        layer_pair = f"L{layer_a}/L{layer_b}"
+        for lvl in levels:
+            t2 = time.time()
+            d_boot_full = run_bootstrap(c_a, c_b, boot_w_full[lvl])
+            d_boot_val  = run_bootstrap(c_a, c_b, boot_w_val[lvl])
+            ci_full = np.percentile(d_boot_full, [2.5, 97.5])
+            ci_val  = np.percentile(d_boot_val,  [2.5, 97.5])
+            de = design_effect(_per_prot, cluster_ids[lvl], full_indices)
+            rows_full.append(dict(
+                rel_depth=f"{label}%", layer_pair=layer_pair, cluster_level=lvl,
+                model_a=model_a, model_b=model_b, preset=args.preset,
+                d_point=d_full_pt, ci_low=ci_full[0], ci_high=ci_full[1],
+                frac_pos=float((d_boot_full > 0).mean()), n_proteins_used=n_proteins,
+                d_boot_mean=float(d_boot_full.mean()), d_boot_sd=float(d_boot_full.std(ddof=1)),
+                icc=de["icc"], design_effect=de["design_effect"],
+                n_eff=de["n_eff"], n_clusters=de["n_clusters"]))
+            rows_val.append(dict(
+                rel_depth=f"{label}%", layer_pair=layer_pair, cluster_level=lvl,
+                model_a=model_a, model_b=model_b, preset=args.preset,
+                d_point=d_val_pt, ci_low=ci_val[0], ci_high=ci_val[1],
+                frac_pos=float((d_boot_val > 0).mean()), n_proteins_used=int(len(val_indices)),
+                d_boot_mean=float(d_boot_val.mean()), d_boot_sd=float(d_boot_val.std(ddof=1))))
+            sd_per_depth_full[(label, lvl)] = d_boot_full
+            sd_per_depth_val[(label, lvl)] = d_boot_val
+            print(f"  [{lvl:11s}] full d_pt={d_full_pt:+.4f} dbar={d_boot_full.mean():+.4f} "
+                  f"CI=[{ci_full[0]:+.4f},{ci_full[1]:+.4f}] fracpos={(d_boot_full>0).mean():.3f} "
+                  f"| Deff={de['design_effect']:.2f} n_eff={de['n_eff']:.0f} ({time.time()-t2:.0f}s)")
 
-        # Bootstrap loop (full)
-        t2 = time.time()
-        d_boot_full = run_bootstrap(c_esm, c_rita, boot_w_full)
-        d_boot_val  = run_bootstrap(c_esm, c_rita, boot_w_val)
-        print(f"  bootstrap {args.n_boot}x2: {time.time()-t2:.0f}s")
-
-        ci_full = np.percentile(d_boot_full, [2.5, 97.5])
-        ci_val  = np.percentile(d_boot_val,  [2.5, 97.5])
-        rows_full.append(dict(
-            rel_depth=f"{label}%", layer_pair=f"L{esm_l}/L{rita_l}",
-            d_point=d_full_pt, ci_low=ci_full[0], ci_high=ci_full[1],
-            frac_pos=float((d_boot_full > 0).mean()),
-            n_proteins_used=n_proteins,
-            d_boot_mean=float(d_boot_full.mean()),
-            d_boot_sd=float(d_boot_full.std(ddof=1)),
-        ))
-        rows_val.append(dict(
-            rel_depth=f"{label}%", layer_pair=f"L{esm_l}/L{rita_l}",
-            d_point=d_val_pt, ci_low=ci_val[0], ci_high=ci_val[1],
-            frac_pos=float((d_boot_val > 0).mean()),
-            n_proteins_used=int(len(val_indices)),
-            d_boot_mean=float(d_boot_val.mean()),
-            d_boot_sd=float(d_boot_val.std(ddof=1)),
-        ))
-        sd_per_depth_full[label] = d_boot_full
-        sd_per_depth_val[label]  = d_boot_val
-
-        print(f"  full: d={d_full_pt:+.4f} CI=[{ci_full[0]:+.4f}, {ci_full[1]:+.4f}] "
-              f"frac_pos={(d_boot_full>0).mean():.3f}")
-        print(f"   val: d={d_val_pt:+.4f} CI=[{ci_val[0]:+.4f}, {ci_val[1]:+.4f}] "
-              f"frac_pos={(d_boot_val>0).mean():.3f}")
-
-        del c_esm, c_rita
+        del c_a, c_b
 
     # ---- Save & report ----
+    # Combined by-level CSVs (cluster_level column distinguishes rows). min_active
+    # is in the filename so the original paper CSVs are never clobbered and the
+    # setting is self-documenting.
+    tag = f"minact{args.min_active}"
     df_full = pd.DataFrame(rows_full)
-    df_full.to_csv(OUT / "bootstrap_h1_full.csv", index=False)
+    df_full.to_csv(OUT / f"{out_stem}_full_bylevel_{tag}.csv", index=False)
     df_val = pd.DataFrame(rows_val)
-    df_val.to_csv(OUT / "bootstrap_h1_val.csv", index=False)
-    np.savez_compressed(OUT / "bootstrap_h1_traces.npz",
-                        **{f"full_{k}": v for k, v in sd_per_depth_full.items()},
-                        **{f"val_{k}": v for k, v in sd_per_depth_val.items()})
+    df_val.to_csv(OUT / f"{out_stem}_val_bylevel_{tag}.csv", index=False)
+    np.savez_compressed(OUT / f"{out_stem}_traces_bylevel_{tag}.npz",
+                        preset=args.preset,
+                        **{f"full_{lvl}_{lab}": v for (lab, lvl), v in sd_per_depth_full.items()},
+                        **{f"val_{lvl}_{lab}": v for (lab, lvl), v in sd_per_depth_val.items()})
 
     print("\n" + "=" * 72)
     print("  FULL-set bootstrap (1500 proteins resampled with replacement)")
@@ -358,19 +443,9 @@ def main():
     print("=" * 72)
     print(df_val.to_string(index=False, float_format=lambda v: f"{v:+.4f}"))
 
-    # Cross-bootstrap correlation between depths (sanity check)
-    if len(sd_per_depth_full) >= 2:
-        labels = [p[0] for p in pairs]
-        mat = np.stack([sd_per_depth_full[l] for l in labels])  # (n_depths, n_boot)
-        corr = np.corrcoef(mat)
-        print("\nCross-depth bootstrap correlation matrix (full set):")
-        print("  rows/cols:", labels)
-        with np.printoptions(precision=3, suppress=True, linewidth=120):
-            print(corr)
-
-    print(f"\nWritten: {OUT/'bootstrap_h1_full.csv'}")
-    print(f"         {OUT/'bootstrap_h1_val.csv'}")
-    print(f"         {OUT/'bootstrap_h1_traces.npz'}")
+    print(f"\nWritten: {OUT / f'{out_stem}_full_bylevel_{tag}.csv'}")
+    print(f"         {OUT / f'{out_stem}_val_bylevel_{tag}.csv'}")
+    print(f"         {OUT / f'{out_stem}_traces_bylevel_{tag}.npz'}")
 
 
 if __name__ == "__main__":

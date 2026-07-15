@@ -3,23 +3,31 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+.venv_evicted*/
+.venv\ 2/
 
 # Data outputs (large, reproducible from code)
 outputs_layerwise*/
+outputs_layerwise_newpair/
+outputs_random/
+outputs_random_weightseed*/
 analysis_results*/
-results_clamping*/
-results_bpe_crossing*/
-results_bpe_correction*/
-results_metric_sweep*/
+analysis_results_newpair/
+analysis_results_multiseed/
+results_*/
+outputs_robustness/*.npz
+outputs_robustness/*.pid
+outputs_robustness/*_progress.txt
+outputs_robustness/*_run.log
+outputs_robustness/run_*.detached.log
 
 # Robustness — large raw L0 hidden states (regeneratable from PLM)
 outputs_robustness/raw_l0_*.npy
 outputs_robustness/__pycache__/
-outputs_robustness/*_progress.txt
-outputs_robustness/*_run.log
 
-# Claude Code workspace
+# Claude / Cursor workspace (local IDE)
 .claude/
+.cursor/
 
 # Sweep outputs — keep aggregates + summary, drop bulky raw concat & per-cell tables
 results_cutoff_sweep/cutoff_raw.csv
@@ -42,8 +50,9 @@ cache/full_sequences.json
 cache/full_residue_features.csv
 cache/ablation_esm2_layer16.npy
 
-# Logs
+# Logs and stale runners
 *.log
+*.pid
 
 # OS
 .DS_Store
@@ -56,3 +65,8 @@ cache/ablation_esm2_layer16.npy
 # Draft paper (Word format, tracked separately)
 paper_draft/
 paper_draft_mechinterp_workshop.docx
+
+# Generated supervisor / planning docs (regenerate from scripts)
+EXPERIMENT_PLAN.docx
+extensions.docx
+SUPERVISOR_PROGRESS_UPDATE.docx

@@ -24,6 +24,8 @@ from extract_embeddings import (
     extract_prott5_encoder_embeddings,
     extract_prott5_decoder_embeddings,
     extract_rita_embeddings,
+    extract_protbert_bfd_embeddings,
+    extract_progen2_embeddings,
     extract_esm2_small_embeddings,
     extract_rita_small_embeddings,
 )
@@ -126,13 +128,13 @@ def load_dataset_from_json(path: Path) -> Tuple[List[str], List[str]]:
 # ============================================================
 
 # Relative depth matching across architectures:
-# | Depth | ESM-2 (33) | ProtGPT2 (36) | ProtT5 (24) |
-# |-------|------------|---------------|-------------|
-# | ~0%   | 0          | 0             | 0           |
-# | ~25%  | 8          | 9             | 6           |
-# | ~50%  | 16         | 18            | 12          |
-# | ~75%  | 24         | 27            | 18          |
-# | 100%  | 32         | 35            | 23          |
+# | Depth | ESM-2 (33) | ProtGPT2 (36) | ProtT5/RITA (24) | ProtBert (30) | ProGen2-base (~27) |
+# |-------|------------|---------------|-------------------|---------------|--------------------|
+# | ~0%   | 0          | 0             | 0                 | 0             | 0                  |
+# | ~25%  | 8          | 9             | 6                 | 7             | 6                  |
+# | ~50%  | 16         | 18            | 12                | 14            | 13                 |
+# | ~75%  | 24         | 27            | 18                | 22            | 20                 |
+# | 100%  | 32         | 35            | 23                | 29            | 26                 |
 
 MODEL_PLANS = {
     "esm2": (
@@ -171,6 +173,21 @@ MODEL_PLANS = {
         # Env override for H5 densification {3, 9, 15, 21}.
         [int(x) for x in os.environ["RITA_LAYERS"].split(",")]
         if os.environ.get("RITA_LAYERS") else [0, 6, 12, 18, 23],
+    ),
+    "protbert_bfd": (
+        "ProtBert-BFD (BERT/MLM, ~420M)",
+        extract_protbert_bfd_embeddings,
+        # 30 blocks -> round([0,.125,.25,.375,.5,.625,.75,.875,1] * 29).
+        [int(x) for x in os.environ["PROTBERT_LAYERS"].split(",")]
+        if os.environ.get("PROTBERT_LAYERS") else [0, 4, 7, 11, 14, 18, 22, 25, 29],
+    ),
+    "progen2": (
+        "ProGen2-base (causal LM; residue-alignment gated)",
+        extract_progen2_embeddings,
+        # ProGen2-base is expected to have ~27 blocks; fail loud if the loaded
+        # checkpoint has fewer blocks. Override if falling back after reporting.
+        [int(x) for x in os.environ["PROGEN2_LAYERS"].split(",")]
+        if os.environ.get("PROGEN2_LAYERS") else [0, 3, 6, 10, 13, 16, 20, 23, 26],
     ),
     # Scale-ablation variants (12 blocks each, matched residue tokenization).
     # Layer plan [0, 3, 6, 9, 11] → ~0/27/55/82/100% relative depth, the
@@ -382,8 +399,9 @@ def main():
 
             T, D = X_tokens.shape
 
-            # Validate residue alignment for encoder models
-            if mk in ("esm2", "prott5_enc", "prott5_dec"):
+            # Validate residue alignment for residue-tokenized models.
+            if mk in ("esm2", "prott5_enc", "prott5_dec", "rita",
+                      "protbert_bfd", "progen2", "esm2_small", "rita_small"):
                 if T != total_tokens:
                     raise RuntimeError(
                         f"{mk}: tokens ({T}) != residues ({total_tokens}). "
