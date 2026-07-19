@@ -3,7 +3,7 @@
 experiment_causal_features.py — E2: per-feature causal effect + causal H1
 =========================================================================
 
-Reviewer 6P8E's top request (causal, not just correlational) and the user's
+a reviewer's top request (causal, not just correlational) and the user's
 priority (analyse the causally load-bearing features).
 
 For each candidate SAE feature we ABLATE it singly during an ESM-2 forward pass

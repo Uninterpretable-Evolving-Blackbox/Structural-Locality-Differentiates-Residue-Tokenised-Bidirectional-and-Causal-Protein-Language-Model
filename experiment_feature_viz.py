@@ -3,7 +3,7 @@
 experiment_feature_viz.py — E6: visualise top features on 3D structures
 =======================================================================
 
-Reviewer 6P8E: "show qualitative examples of important features on real protein
+a reviewer: "show qualitative examples of important features on real protein
 structures." Renders, for the top structural-locality features, the protein on
 which the feature fires most, as a 3D Cα trace coloured by feature activation,
 alongside the structural contact map with active residues highlighted. Makes the

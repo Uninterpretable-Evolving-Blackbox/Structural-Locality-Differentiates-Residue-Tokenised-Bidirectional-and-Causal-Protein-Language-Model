@@ -3,7 +3,7 @@
 experiment_probe_baseline.py — "Do you even need SAEs?" linear-probe baseline
 =============================================================================
 
-Reviewer U2Yp / Adams et al. (ICML 2025) test: compare a linear probe trained on
+a reviewer / Adams et al. (ICML 2025) test: compare a linear probe trained on
 RAW PLM activations against one trained on SAE features, for the same structural
 readouts, at matched depths, for ESM-2 vs RITA.
 

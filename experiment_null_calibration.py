@@ -3,7 +3,7 @@
 experiment_null_calibration.py — calibrate L_struct against a structural null
 =============================================================================
 
-Reviewer U2Yp asked: "how big is the ESM-2 vs RITA L_struct difference? Give a
+a reviewer asked: "how big is the ESM-2 vs RITA L_struct difference? Give a
 condition under which L_struct should be ~0 as a baseline."
 
 This recomputes the paper's L_struct (struct_delta = observed - within-protein

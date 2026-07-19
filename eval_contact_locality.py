@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-eval_contact_locality.py — connect L_struct to downstream contact prediction (Reviewer 6P8E).
+eval_contact_locality.py — connect L_struct to downstream contact prediction (a reviewer).
 
 For each layer of ESM-2 and RITA:
   - unsupervised APC contact prediction (Rao et al. 2020) from raw per-residue embeddings

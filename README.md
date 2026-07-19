@@ -3,7 +3,7 @@
 **TopK sparse autoencoders on protein LM activations reveal that bidirectional models encode long-range 3D structure more locally in feature space than matched causal models — a family-level, geometric, correlational pattern, not a claim about training objective alone.**
 
 > **Accepted** to the [ICML 2026 Workshop on Mechanistic Interpretability](https://icml.cc/).  
-> This repository is the **living project page** for poster and workshop visitors. A standalone PDF is not required to follow the work; figures, numbers, and reproduction commands are here. Full agent/developer handoff: [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
+> This repository is the **living project page** for poster and workshop visitors. A standalone PDF is not required to follow the work; figures, numbers, and reproduction commands are here.
 
 **Public repo:** [github.com/Uninterpretable-Evolving-Blackbox/Structural-Locality-Differentiates-Residue-Tokenised-Bidirectional-and-Causal-Protein-Language-Model](https://github.com/Uninterpretable-Evolving-Blackbox/Structural-Locality-Differentiates-Residue-Tokenised-Bidirectional-and-Causal-Protein-Language-Model)  
 *(git `origin` may still show `submission_2`; content is the same project.)*
@@ -168,7 +168,7 @@ Nine-depth densification (if starting from 5-depth defaults): `./run_esm_rita_de
 .venv/bin/python make_poster_fig_lenses_controls.py
 ```
 
-Overnight CPU/MPS runners: `run_overnight_cpu.sh`, `run_overnight_mps.sh`, `run_tier1b_random_weight_seeds.sh`. See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the full script index.
+Overnight CPU/MPS runners: `run_overnight_cpu.sh`, `run_overnight_mps.sh`, `run_tier1b_random_weight_seeds.sh`.
 
 ---
 
@@ -217,7 +217,7 @@ Ignore `outputs_layerwise/progen2` — leftover from a removed model.
 5. **Random-weight floor spread** — Weight-init seed 0 gives concept-F1 **0.12**; seeds 1/2 **~0.40** (high variance across inits). Trained mean **0.71** stays well above random mean **0.30**.
 6. **Not done:** cross-attention analysis, LLM auto-interp, supervised contact readout for E2, aggregated 4-panel cross-model figure, full arXiv prose.
 
-Principles: convergent evidence, explicit controls (shuffled graph, random weights, random features), protein/fold-cluster bootstrap, val→test for threshold selection — see `.cursor/rules/experimental-rigor.mdc`.
+Principles: convergent evidence, explicit controls (shuffled graph, random weights, random features), protein/fold-cluster bootstrap, val→test for threshold selection.
 
 ---
 
@@ -236,6 +236,5 @@ Principles: convergent evidence, explicit controls (shuffled graph, random weigh
 
 ## For developers
 
-- **Authoritative status & audit:** [`PROJECT_STATUS.md`](PROJECT_STATUS.md) (§11 = latest session)
-- **Quick agent snapshot:** [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md)
+- **Experiment catalogue:** the tables above, cross-referenced to `results_*/` and `outputs_*/`.
 - **Paper-revision tables:** `outputs_robustness/PAPER_REVISION_SUMMARY.md`
