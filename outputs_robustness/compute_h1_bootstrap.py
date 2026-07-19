@@ -98,6 +98,17 @@ PAIR_PRESETS = {
         matched_pairs=MATCHED_PAIRS_CTRL,
         out_stem="bootstrap_h1_ctrl",
     ),
+    # k_sparse=96 rerun. The original ctrl SAEs used k=256, which was ablated on
+    # ESM-2 L16 (1280-dim) and gives k/embed_dim = 53% on these 480-dim models
+    # (vs 20% for ESM-2, 17% for RITA) -> near-invertible basis, val_EV up to 0.997,
+    # i.e. above the 0.99 at which ProGen2 was dropped as degenerate. k=96 restores
+    # ESM-2 L16's regime exactly on both axes (k/embed 20.0%, k/hidden 2.50%).
+    "ctrl_k96": dict(
+        model_a="ctrl_mlm_A", model_b="ctrl_clm_A",
+        output_root="outputs_ctrl_k96",
+        matched_pairs=MATCHED_PAIRS_CTRL,
+        out_stem="bootstrap_h1_ctrl_k96",
+    ),
     "esm_rita": dict(
         model_a="esm2", model_b="rita",
         output_root="outputs_layerwise",

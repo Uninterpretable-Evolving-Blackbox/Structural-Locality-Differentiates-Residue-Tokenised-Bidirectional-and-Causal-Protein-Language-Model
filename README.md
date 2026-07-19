@@ -51,6 +51,7 @@ Numbers below are from completed runs on disk (`results_*/summary.json`, `output
 | **H1** ESM-2 vs RITA `L_struct`, 9 depths | ✓ Main result + metric sweeps, seeds 42/43/44, k/split robustness | Fold-cluster bootstrap; concept-F1; null calibration; probe; ablation; steering |
 | **H2** ProtT5 encoder vs decoder crossover (~42% depth) | ✓ | Fold CIs for enc/dec pair (`v2_cis_pair_pt5_fold.csv`) |
 | **§4.2** ProtGPT2 BPE sequential-locality artefact | ✓ Inter-token control | — |
+| **§4.4** Downstream long-range contact prediction | ✓ Camera-ready: bidirectional ~2.7× > causal (P@L/5, unsupervised APC readout) | `eval_contact_locality.py` → `results_contact_locality/` |
 | **Within-model depth trajectories** (Appendix G) | ✓ Four PLM signatures | Fold trajectory CIs (`v2_cis_trajectory.csv`) |
 | **Multi-seed SAE training** | ✓ Appendix F (cross-seed SD; paper table at 5 depths) | 9-depth grids re-run: `outputs_layerwise_seed{43,44}/` |
 | **Randomised PLM weights** | — | ✓ ESM-2 × 9 layers, seed 0; headline L16 seeds 0/1/2 vs trained SAE seeds 42/43/44 |
@@ -145,6 +146,10 @@ Nine-depth densification (if starting from 5-depth defaults): `./run_esm_rita_de
   --layer-dir outputs_layerwise/esm2/layer_16 \
   --save-dir results_concept_f1/esm2_l16
 
+# §4.4 Downstream contact prediction (ESM-2, RITA; APC-corrected, top-L/5)
+.venv/bin/python eval_contact_locality.py \
+  --ref-layer-dir outputs_layerwise/esm2/layer_16 --models esm2,rita
+
 # H1 fold-cluster bootstrap (canonical)
 .venv/bin/python -u outputs_robustness/compute_h1_bootstrap.py \
   --cluster-levels fold,protein --min-active 0 --depths all --n-boot 1000
@@ -219,8 +224,9 @@ Principles: convergent evidence, explicit controls (shuffled graph, random weigh
 ## Citation
 
 ```bibtex
-@inproceedings{anonymous2026structural-locality,
+@inproceedings{gao2026structural-locality,
   title={Structural Locality Differentiates Residue-Tokenised Bidirectional and Causal Protein Language Model Families},
+  author={Gao, Wei and Fedorec, Alex},
   booktitle={ICML 2026 Workshop on Mechanistic Interpretability},
   year={2026}
 }
